@@ -12,18 +12,19 @@ struct ClipRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
-                if model.selectMode || hovering || isChecked {
-                    Button { model.toggleChecked(clip) } label: {
-                        Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 15))
-                            .foregroundStyle(isChecked ? Color.accentColor : Color.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 1)
-                    .transition(.opacity)
+                // The checkbox column is always reserved so the content never
+                // re-wraps when it appears. It is faint until hover or select mode.
+                Button { model.toggleChecked(clip) } label: {
+                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 15))
+                        .foregroundStyle(isChecked ? Color.accentColor : Color.secondary)
                 }
+                .buttonStyle(.plain)
+                .padding(.top, 1)
+                .opacity(model.selectMode || hovering || isChecked ? 1 : 0.18)
                 ClipContentView(clip: clip, store: model.store, compact: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .clipped()
             }
             footer
         }
@@ -69,8 +70,22 @@ struct ClipRow: View {
                     .padding(.horizontal, 5).padding(.vertical, 2)
                     .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
+            Button {
+                model.select(index: index)
+                model.perform(.delete)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 11))
+                    .foregroundStyle(trashHovering ? Color.red : Color.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { trashHovering = $0 }
+            .help("Delete this clip")
         }
     }
+    @State private var trashHovering = false
 }
 
 /// Right-click menu for a clip. It mirrors the keyboard actions.
