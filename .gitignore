@@ -1,0 +1,18 @@
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Generated
+ClipKeeper/Info.plist
+ClipKeeper/Assets.xcassets/AppIcon.appiconset/*.png
+
+# macOS
+.DS_Store
