@@ -76,6 +76,23 @@ struct PasteboardSnapshot: Equatable {
         return false
     }
 
+    /// Human names for the formats present, main content first: "PNG, TIFF" or "RTF, HTML, Plain text".
+    var formatSummary: String {
+        let order: [(String, String)] = [
+            (PBType.png, "PNG"), (PBType.jpeg, "JPEG"), (PBType.tiff, "TIFF"), (PBType.heic, "HEIC"), (PBType.gif, "GIF"),
+            (PBType.rtfd, "RTFD"), (PBType.rtf, "RTF"), (PBType.html, "HTML"), (PBType.webArchive, "Web archive"),
+            (PBType.fileURL, "File references"), (PBType.url, "URL"), (PBType.color, "Color"),
+            (PBType.string, "Plain text"),
+        ]
+        let present = allTypes
+        var names: [String] = []
+        for (type, name) in order where present.contains(type) { names.append(name) }
+        let known = Set(order.map(\.0)) .union([PBType.legacyFilenames, PBType.source, PBType.urlName])
+        let other = present.subtracting(known).filter { !$0.hasPrefix("dyn.") && !$0.hasPrefix("org.nspasteboard") }
+        if !other.isEmpty { names.append(other.count == 1 ? "1 other type" : "\(other.count) other types") }
+        return names.joined(separator: ", ")
+    }
+
     /// Builds a snapshot that holds only a plain string.
     static func plainText(_ string: String) -> PasteboardSnapshot {
         PasteboardSnapshot(items: [[PBType.string: Data(string.utf8)]])

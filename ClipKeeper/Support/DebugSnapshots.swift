@@ -3,7 +3,8 @@ import Foundation
 
 /// Development aid. When the environment variable CLIPKEEPER_SNAPSHOT_DIR is
 /// set, the app renders its main views to PNG files in that directory shortly
-/// after launch. With CLIPKEEPER_SNAPSHOT_QUIT=1 it then quits.
+/// after launch. With CLIPKEEPER_SNAPSHOT_QUIT=1 it then quits. The files
+/// double as the screenshots in the User Guide.
 @MainActor
 enum DebugSnapshots {
     static func runIfRequested(shelf: ShelfController, settings: SettingsWindowController, onboarding: OnboardingWindowController, store: ClipStore) {
@@ -14,22 +15,36 @@ enum DebugSnapshots {
 
         var steps: [(TimeInterval, () -> Void)] = []
         let vm = shelf.viewModel
+        func shot(_ name: String) { write(shelf.snapshotView, to: url.appendingPathComponent(name)) }
+        func selectFirst(kind: ClipKind) {
+            if let idx = vm.clips.firstIndex(where: { $0.kind == kind }) { vm.select(index: idx) }
+        }
 
         steps.append((1.0, { shelf.show() }))
-        steps.append((1.5, { write(shelf.snapshotView, to: url.appendingPathComponent("shelf.png")) }))
-        steps.append((0.2, { vm.perform(.moveDown); vm.perform(.togglePreview) }))
-        steps.append((0.8, { write(shelf.snapshotView, to: url.appendingPathComponent("shelf-preview.png")); vm.perform(.togglePreview) }))
+        steps.append((1.5, { shot("shelf.png") }))
+        steps.append((0.2, { selectFirst(kind: .image); vm.perform(.togglePreview) }))
+        steps.append((0.8, { shot("preview-image.png"); vm.perform(.togglePreview) }))
+        steps.append((0.2, { selectFirst(kind: .markdown); vm.perform(.togglePreview) }))
+        steps.append((0.8, { shot("preview.png"); vm.perform(.togglePreview); vm.select(index: 0) }))
         steps.append((0.2, { vm.perform(.moveToCollection) }))
-        steps.append((0.6, { write(shelf.snapshotView, to: url.appendingPathComponent("shelf-picker.png")); vm.overlay = nil }))
+        steps.append((0.6, { shot("picker.png"); vm.overlay = nil }))
         steps.append((0.2, { vm.query = "release" }))
-        steps.append((0.8, { write(shelf.snapshotView, to: url.appendingPathComponent("shelf-search.png")); vm.query = "" }))
+        steps.append((0.8, { shot("search.png"); vm.query = "" }))
         steps.append((0.2, { vm.perform(.toggleSelectMode); vm.perform(.extendSelectionDown); vm.perform(.extendSelectionDown) }))
-        steps.append((0.6, { write(shelf.snapshotView, to: url.appendingPathComponent("shelf-select.png")); vm.perform(.toggleSelectMode) }))
+        steps.append((0.6, { shot("checked.png"); vm.perform(.selectAll); vm.perform(.selectAll) }))
         steps.append((0.2, { vm.perform(.delete) }))
-        steps.append((0.6, { write(shelf.snapshotView, to: url.appendingPathComponent("shelf-confirm.png")); vm.overlay = nil; shelf.hide() }))
-        steps.append((0.5, { settings.show() }))
+        steps.append((0.6, { shot("confirm.png"); vm.overlay = nil; shelf.hide() }))
+        steps.append((0.5, { settings.show(tab: .general) }))
         steps.append((1.0, {
             if let v = settings.window?.contentView { write(v, to: url.appendingPathComponent("settings.png")) }
+            settings.show(tab: .keys)
+        }))
+        steps.append((0.8, {
+            if let v = settings.window?.contentView { write(v, to: url.appendingPathComponent("settings-keys.png")) }
+            settings.show(tab: .storage)
+        }))
+        steps.append((0.8, {
+            if let v = settings.window?.contentView { write(v, to: url.appendingPathComponent("settings-storage.png")) }
             settings.window?.close()
             onboarding.show {}
         }))

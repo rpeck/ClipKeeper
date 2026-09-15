@@ -7,6 +7,12 @@ final class Database {
 
     /// Directory that holds the database and the blob store.
     static var supportDirectory: URL {
+        // CLIPKEEPER_DATA_DIR points the app at another data folder, for tests and demos.
+        if let override = ProcessInfo.processInfo.environment["CLIPKEEPER_DATA_DIR"], !override.isEmpty {
+            let dir = URL(fileURLWithPath: override, isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = base.appendingPathComponent("ClipKeeper", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -15,8 +21,22 @@ final class Database {
 
     /// Opens (or creates) the database at the standard location.
     static func open() throws -> Database {
-        let url = supportDirectory.appendingPathComponent("clipkeeper.sqlite")
-        return try Database(path: url.path)
+        let dir = supportDirectory
+        let url = dir.appendingPathComponent("clipkeeper.sqlite")
+        let db = try Database(path: url.path)
+        restrictPermissions(directory: dir)
+        return db
+    }
+
+    /// Makes the data folder private to this user: folders 700, files 600.
+    static func restrictPermissions(directory: URL) {
+        let fm = FileManager.default
+        try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        guard let enumerator = fm.enumerator(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) else { return }
+        for case let url as URL in enumerator {
+            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            try? fm.setAttributes([.posixPermissions: isDir ? 0o700 : 0o600], ofItemAtPath: url.path)
+        }
     }
 
     /// Opens an in-memory database. Used by tests.
@@ -27,6 +47,11 @@ final class Database {
     private init(path: String?) throws {
         var config = Configuration()
         config.foreignKeysEnabled = true
+        // Deleted rows are overwritten with zeros inside the database file, so
+        // a deleted clip does not linger in free pages.
+        config.prepareDatabase { db in
+            try db.execute(sql: "PRAGMA secure_delete = ON")
+        }
         if let path {
             queue = try DatabaseQueue(path: path, configuration: config)
         } else {
@@ -77,6 +102,11 @@ final class Database {
                 t.column("text")
                 t.column("sourceAppName")
                 t.column("linkTitle")
+            }
+        }
+        migrator.registerMigration("v2-formats") { db in
+            try db.alter(table: "clip") { t in
+                t.add(column: "formats", .text)
             }
         }
         try migrator.migrate(queue)

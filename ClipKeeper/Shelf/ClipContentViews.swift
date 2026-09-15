@@ -11,7 +11,7 @@ struct ClipContentView: View {
         switch clip.kind {
         case .text: textView
         case .markdown: markdownView
-        case .code: CodeBlockView(code: clip.text, language: clip.language, maxLines: compact ? 14 : nil)
+        case .code: CodeBlockView(code: clip.text, language: clip.language, maxLines: compact ? 14 : nil, selectable: !compact)
         case .richText: richTextView
         case .image: imageView
         case .link: LinkCardView(clip: clip, store: store, compact: compact)
@@ -26,7 +26,7 @@ struct ClipContentView: View {
             .lineLimit(compact ? 10 : nil)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .textSelection(.enabled)
+            .modifier(SelectableText(enabled: !compact))
     }
 
     private var markdownView: some View {
@@ -75,6 +75,20 @@ struct ClipContentView: View {
     }
 }
 
+/// Text selection only in the full preview. In the list a click must select
+/// the card, and selectable text would swallow it.
+struct SelectableText: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.textSelection(.enabled)
+        } else {
+            content.textSelection(.disabled)
+        }
+    }
+}
+
 /// Clips tall content and fades the bottom edge to show it continues.
 struct CompactClip: ViewModifier {
     let enabled: Bool
@@ -102,6 +116,7 @@ struct CodeBlockView: View {
     let code: String
     let language: String?
     let maxLines: Int?
+    var selectable: Bool = false
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -110,10 +125,10 @@ struct CodeBlockView: View {
                 .lineSpacing(2)
                 .fixedSize(horizontal: true, vertical: true)
                 .padding(10)
-                .textSelection(.enabled)
+                .modifier(SelectableText(enabled: selectable))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: CodeHighlighter.shared.backgroundColor).opacity(0.9))
+        .background(Color.primary.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
@@ -143,7 +158,7 @@ struct LinkCardView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(compact ? 2 : nil)
                     .truncationMode(.middle)
-                    .textSelection(.enabled)
+                    .modifier(SelectableText(enabled: !compact))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

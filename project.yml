@@ -44,6 +44,8 @@ targets:
       - path: ClipKeeper
         excludes:
           - "Info.plist"
+      - path: docs/USER-GUIDE.md
+        buildPhase: resources
     dependencies:
       - package: MarkdownUI
         product: MarkdownUI

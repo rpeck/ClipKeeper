@@ -61,7 +61,10 @@ enum ContentClassifier {
             if snapshot.items.isEmpty { return nil }
             return nil
         }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Attachment placeholders (U+FFFC) alone are not content. An HTML or RTFD
+        // fragment that holds only an image whose data has not landed yet reads
+        // as one such character.
+        let trimmed = text.replacingOccurrences(of: "\u{FFFC}", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let lineCount = text.split(separator: "\n", omittingEmptySubsequences: false).count
         let hasRich = PBType.richTypes.contains { snapshot.has($0) }

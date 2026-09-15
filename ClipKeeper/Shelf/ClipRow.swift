@@ -8,6 +8,7 @@ struct ClipRow: View {
     let isSelected: Bool
     let isChecked: Bool
     @State private var hovering = false
+    @State private var showInfo = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -15,13 +16,14 @@ struct ClipRow: View {
                 // The checkbox column is always reserved so the content never
                 // re-wraps when it appears. It is faint until hover or select mode.
                 Button { model.toggleChecked(clip) } label: {
-                    Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                    Image(systemName: isChecked ? "checkmark.square.fill" : "square")
                         .font(.system(size: 15))
                         .foregroundStyle(isChecked ? Color.accentColor : Color.secondary)
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 1)
-                .opacity(model.selectMode || hovering || isChecked ? 1 : 0.18)
+                .opacity(hovering || isChecked || !model.selectedUUIDs.isEmpty ? 1 : 0.22)
+                .help(isChecked ? "Uncheck (⌘⇧A)" : "Check this clip for a bulk action (⌘⇧A)")
                 ClipContentView(clip: clip, store: model.store, compact: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .clipped()
@@ -31,16 +33,19 @@ struct ClipRow: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? Color.accentColor.opacity(0.14) : Color.primary.opacity(0.045))
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(isSelected ? Color.accentColor.opacity(0.08) : .clear))
+                .shadow(color: .black.opacity(0.07), radius: 3, y: 1)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(isSelected ? Color.accentColor.opacity(0.9) : Color.primary.opacity(0.07), lineWidth: isSelected ? 1.5 : 1)
+                .strokeBorder(isSelected ? Color.accentColor.opacity(0.9) : Color.primary.opacity(0.1), lineWidth: isSelected ? 1.5 : 1)
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onTapGesture(count: 2) { model.select(index: index); model.perform(.paste) }
         .onTapGesture(count: 1) { model.select(index: index) }
+        .onDrag { ClipDrag.itemProvider(for: clip, store: model.store) }
         .contextMenu { ClipContextMenu(model: model, clip: clip, index: index) }
         .animation(.easeOut(duration: 0.1), value: hovering)
     }
@@ -56,6 +61,21 @@ struct ClipRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+            Button { showInfo.toggle() } label: {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(clip.detailsTooltip)
+            .popover(isPresented: $showInfo, arrowEdge: .bottom) {
+                Text(clip.detailsTooltip)
+                    .font(.system(size: 12))
+                    .textSelection(.enabled)
+                    .padding(12)
+                    .frame(minWidth: 200, maxWidth: 360, alignment: .leading)
+            }
             Spacer(minLength: 4)
             if clip.pinned {
                 Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.orange)

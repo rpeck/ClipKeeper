@@ -88,8 +88,9 @@ final class ClipStore: ObservableObject {
 
     // MARK: Reading clips
 
-    /// Clips in a set, newest first, pinned first. `query` filters with full-text search.
-    func clips(in set: ClipSet, query: String) -> [Clip] {
+    /// Clips in a set, newest first, pinned first. `query` filters with full-text
+    /// search, ranked by match quality unless `newestFirst` is set.
+    func clips(in set: ClipSet, query: String, newestFirst: Bool = false) -> [Clip] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return (try? db.read { db -> [Clip] in
             let collectionClause = set.collectionID == nil ? "clip.collectionID IS NULL" : "clip.collectionID = ?"
@@ -100,7 +101,8 @@ final class ClipStore: ObservableObject {
                 return try Clip.fetchAll(db, sql: "SELECT clip.* FROM clip WHERE \(collectionClause) ORDER BY \(order) LIMIT 2000", arguments: StatementArguments(args))
             }
             if let pattern = FTS5Pattern(matchingAllPrefixesIn: q) {
-                let sql = "SELECT clip.* FROM clip JOIN clip_fts ON clip_fts.rowid = clip.id WHERE clip_fts MATCH ? AND \(collectionClause) ORDER BY clip.pinned DESC, bm25(clip_fts, 4.0, 1.0, 2.0, 3.0), clip.position DESC, clip.id DESC LIMIT 500"
+                let rank = newestFirst ? order : "clip.pinned DESC, bm25(clip_fts, 4.0, 1.0, 2.0, 3.0), clip.position DESC, clip.id DESC"
+                let sql = "SELECT clip.* FROM clip JOIN clip_fts ON clip_fts.rowid = clip.id WHERE clip_fts MATCH ? AND \(collectionClause) ORDER BY \(rank) LIMIT 500"
                 return try Clip.fetchAll(db, sql: sql, arguments: StatementArguments([pattern] + args))
             }
             let like = "%" + q + "%"
@@ -145,13 +147,14 @@ final class ClipStore: ObservableObject {
             updated.position = now.timeIntervalSince1970
             updated.sourceBundleID = sourceBundleID ?? existing.sourceBundleID
             updated.sourceAppName = sourceAppName ?? existing.sourceAppName
+            updated.formats = snapshot.formatSummary
             try? db.write { db in try updated.update(db) }
             try? blobs.save(snapshot: snapshot, for: existing.uuid)
             bump()
             return updated
         }
 
-        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex)
+        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex, formats: snapshot.formatSummary)
         do {
             try blobs.save(snapshot: snapshot, for: clip.uuid)
             if let data = c.imageData { blobs.saveThumbnail(from: data, for: clip.uuid) }

@@ -14,9 +14,15 @@ final class BlobStore {
         snapshotsDir = root.appendingPathComponent("snapshots", isDirectory: true)
         thumbsDir = root.appendingPathComponent("thumbnails", isDirectory: true)
         faviconsDir = root.appendingPathComponent("favicons", isDirectory: true)
-        for dir in [snapshotsDir, thumbsDir, faviconsDir] {
+        for dir in [root, snapshotsDir, thumbsDir, faviconsDir] {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         }
+    }
+
+    /// Files are private to this user: mode 600.
+    private func lock(_ url: URL) {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 
     static func standard() -> BlobStore {
@@ -36,6 +42,7 @@ final class BlobStore {
 
     func save(snapshot: PasteboardSnapshot, for uuid: String) throws {
         try snapshot.serialized().write(to: snapshotURL(for: uuid), options: .atomic)
+        lock(snapshotURL(for: uuid))
     }
 
     func loadSnapshot(for uuid: String) -> PasteboardSnapshot? {
@@ -54,6 +61,7 @@ final class BlobStore {
         guard let image = NSImage(data: imageData) else { return }
         let png = ImageConversion.downscaledPNG(image, maxDimension: maxDimension) ?? imageData
         try? png.write(to: thumbnailURL(for: uuid), options: .atomic)
+        lock(thumbnailURL(for: uuid))
     }
 
     func thumbnail(for uuid: String) -> NSImage? {
@@ -74,6 +82,7 @@ final class BlobStore {
     func saveFavicon(_ data: Data, forHost host: String) {
         guard let image = NSImage(data: data), let png = ImageConversion.pngData(image) else { return }
         try? png.write(to: faviconURL(forHost: host), options: .atomic)
+        lock(faviconURL(forHost: host))
     }
 
     // MARK: Removal

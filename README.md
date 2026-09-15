@@ -1,119 +1,133 @@
 # ClipKeeper
 
-A native Mac clipboard manager. Everything you copy lands in a shelf that
-slides in from the right edge of the screen. Your hands stay on the keyboard.
+A clipboard manager for macOS that keeps your hands on the keyboard.
 
-## What it does
+Everything you copy lands in a shelf at the right edge of the screen. Press
+⌘⇧V, or move the mouse to the right edge of your screen. Move with the arrow
+keys, press Return, and the clip pastes into the app you were in. Text, code,
+Markdown, rich text, images, links, colors, and files each render as what
+they are. Hover or click the ⓘ on a card for its details.
 
-- **Captures every copy.** Text, Markdown, code, rich text, images, links, colors, and files.
-- **Renders each type.** Markdown is rendered. Code is syntax-highlighted. Images show as thumbnails. Links show the page title and favicon. Colors show a swatch.
-- **Keyboard first.** ⌘⇧V opens the shelf. Arrow keys or ⌃N ⌃P move. ← → or ⌃B ⌃F switch sets. Return pastes. Esc closes.
-- **Collections.** History fills on every copy. Named collections hold clips you put there on purpose.
-- **Never lossy.** Editing text or cropping an image makes a new clip. The original stays until you delete it.
-- **Paste as… and Save as…** keep the original format by default and offer conversions.
+![The shelf](docs/images/shelf.png)
 
-## Build
+## Why
 
-Requirements: macOS 15, Xcode 26, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+- **Every type renders.** Markdown is rendered. Code is syntax colored with
+  its language named. Rich text keeps its formatting. Images show as
+  thumbnails with their format. Links show the page title and icon. Colors
+  show a swatch.
+- **Keyboard first.** Arrow keys, Emacs keys, or vim keys. Return pastes the
+  clip into the active application. Esc closes. Every key is remappable.
+- **Nothing is lost.** Editing text or cropping an image makes a new clip.
+  Collections, named sets that you fill on purpose, hold clips that never
+  expire. Only Delete removes a clip.
+- **Original formats stay.** A paste puts back every format the source app
+  provided. Paste as… and Save as… offer conversions on request: rich text
+  can be saved as Markdown, an image can change format, a link can become a
+  Markdown link, and so on.
+- **Private by design.** Clips stay on your Mac in files only your account
+  can read. Password manager copies are skipped. Deleted clips are gone.
+
+## Install
+
+Requirements: macOS 15 or later, and Xcode 26 or the Command Line Tools to
+build it.
 
 ```sh
-brew install xcodegen
-scripts/build.sh run        # debug build, then launch
-scripts/build.sh test       # unit tests
-scripts/build.sh install    # release build into /Applications
+git clone <this repository> && cd ClipKeeper
+scripts/make-dev-cert.sh      # once; a local signing identity, see docs/BUILDING.md
+scripts/bundle-spm.sh run     # builds build/spm/ClipKeeper.app and launches it
 ```
 
-The script generates the Xcode project from `project.yml`, draws the app icon
-with `scripts/make-icon.swift`, and builds with `xcodebuild`. It sets
-`DEVELOPER_DIR` to Xcode.app, so no global `xcode-select` change is needed.
+On first launch a welcome window walks you through the hotkey, the
+Accessibility permission, and launch at login. See
+[docs/BUILDING.md](docs/BUILDING.md) for the Xcode build and for code signing.
 
-`Package.swift` also builds the same sources with SwiftPM:
+## Quick start
 
-```sh
-swift build
-swift test
-```
+**Open the shelf**
+- Press ⌘⇧V. Press it again, or Esc, to close.
+- Or rest the mouse at the right edge of the screen for a moment.
+- Drag the grip on the shelf's left edge to change its width.
 
-The SwiftPM build produces a bare executable, not an app bundle. Use it for
-compile checks and tests.
+**Pick a clip**
+- ↓ ↑, or ⌃N ⌃P (Emacs), or ⌃J ⌃K (vim) move the selection.
+- Type to search. Words can be in any order; a prefix is enough. Switch the
+  results between Best match and Newest with the control above the list.
+- Space shows the full clip with its details and action buttons.
+- Hover or click the ⓘ on a card for the type, the formats on the
+  clipboard, the size, the source, and the time.
 
-## Keys
+**Paste**
+- ⏎ pastes into the app you came from and closes the shelf.
+- ⇧⏎ pastes as plain text.
+- ⌥⏎ copies to the clipboard without pasting.
+- ⌘⇧⏎ opens Paste as… with the formats for the clip.
+- ⌘1 to ⌘9 paste the first nine clips directly.
+- Double-click a card to paste it.
 
-All keys are changeable in Settings › Keys. Defaults:
+**Keep and organize**
+- ← → or ⌃B ⌃F switch between History and your collections.
+- ⌘N makes a collection. ⌘M moves the selected clip into one. Dragging a
+  clip onto a tab does the same.
+- ⌘P pins a clip to the top.
+
+**Change and export**
+- ⌘E edits text, or crops an image. The result is a new clip; the original
+  stays.
+- ⌘S saves the clip as a file. The save panel offers the formats for that
+  type, original first.
+- ⌘O opens a link in the browser, or reveals files in Finder.
+
+**Remove**
+- ⌘⌫, or the trash icon on the card. ClipKeeper asks first.
+- Check the boxes on several cards, with a click or ⌘⇧A, for a bulk move,
+  save, or delete.
+
+**Everything else**
+- ⌘, opens Settings: hotkeys, keys, privacy, and storage limits.
+- The menu bar icon has Pause Capture, an eyedropper for grabbing a color
+  off the screen, and the User Guide.
+
+The full [User Guide](docs/USER-GUIDE.md) covers every feature, every clip
+type, and the answers to common problems.
+
+## Default keys
 
 | Key | Action |
 |---|---|
-| ⌘⇧V | Open or close the shelf (global) |
-| ↑ ↓ ⌃N ⌃P | Move the selection |
-| ← → ⌃B ⌃F ⇥ ⇧⇥ | Switch between History and collections |
-| ⏎ | Paste the selected clip |
-| ⇧⏎ | Paste as plain text |
-| ⌥⏎ | Copy to the clipboard without a paste |
-| ⌘⇧⏎ | Paste as… |
+| ⌘⇧V | Open or close the shelf |
+| ↓ ↑ ⌃N ⌃P ⌃J ⌃K | Move the selection |
+| ← → ⌃B ⌃F ⇥ ⇧⇥ | Switch sets |
+| ⏎ ⇧⏎ ⌥⏎ ⌘⇧⏎ | Paste, paste plain, copy only, paste as… |
 | ⌘1 – ⌘9 | Paste slot 1 to 9 |
-| ␣ | Full preview |
-| ⌘E | Edit text, or crop an image |
-| ⌘S | Save as… |
-| ⌘P | Pin or unpin |
-| ⌘M | Move to a collection |
-| ⌘D | Duplicate |
-| ⌘N | New collection |
-| ⌘⌫ | Delete (asks first) |
-| ⌘⇧A | Select mode; ⌘A selects all; ⇧↑ ⇧↓ extend |
-| ⎋ | Close |
+| ␣ (space) | Full preview |
+| ⌘E ⌘S ⌘O | Edit or crop, save as…, open |
+| ⌘P ⌘M ⌘D ⌘⌫ | Pin, move to collection, duplicate, delete |
+| ⌘N ⌘R | New collection, rename collection |
+| ⌘⇧A ⌘A ⇧↓ ⇧↑ | Check the clip, check all, check and move |
+| ⌘, | Settings |
+| esc | Close |
 
-When the search field holds text, ← → and ⌫ edit the text. ⇥ and ⇧⇥ still switch sets.
+Change any of them in Settings › Keys.
 
-## Permissions
+## Privacy and safety
 
-- **Accessibility.** ClipKeeper presses ⌘V on your behalf to paste into the front app. Without the permission, Return copies the clip and closes the shelf, and you press ⌘V.
-- **Network.** Copied links get their page title and favicon from the link's site. Turn this off in Settings › Privacy.
+- Clips stay on your Mac, in a folder only your account can read.
+- The only network request fetches the title and icon of a copied link. Turn
+  it off in Settings › Privacy.
+- Copies from password managers are skipped. Any app can be excluded. Pause
+  capture before copying something you do not want kept.
+- Delete removes the clip from the database and from disk. There is no trash.
 
-## Code signing
+## For developers
 
-The Accessibility permission is tied to the code signature. An ad-hoc signed
-build gets a new signature hash on every rebuild, so macOS forgets the
-permission. Both build scripts sign with a stable local identity instead:
-
-```sh
-scripts/make-dev-cert.sh     # once: creates "ClipKeeper Development" in the login keychain
-```
-
-If macOS asks whether `codesign` may use the key, click Always Allow.
-
-When the permission is on in System Settings but the app still reports it
-missing, the entry belongs to an older build. Remove ClipKeeper from the
-Accessibility list with the − button, then click Request Permission in
-Settings › General. Or reset it from the terminal:
-
-```sh
-tccutil reset Accessibility com.raymondpeck.ClipKeeper
-```
-
-To sign with an Apple Development certificate instead:
-
-1. Open Xcode › Settings › Accounts. Add your Apple ID.
-2. Select the account, then Manage Certificates. Click + and choose Apple Development.
-3. In `project.yml`, set `CODE_SIGN_IDENTITY: "Apple Development"` and `DEVELOPMENT_TEAM` to your team ID.
-4. Run `scripts/build.sh install`.
-
-## Layout
-
-```
-ClipKeeper/
-  App/          AppDelegate, main
-  Model/        Clip, ClipCollection, PasteboardSnapshot, ClipKind
-  Storage/      Database (GRDB + FTS5), BlobStore, ClipStore
-  Clipboard/    PasteboardMonitor, ContentClassifier, detectors, Paster, Exporter
-  Keys/         KeyCombo, KeyAction, KeyBindingStore
-  Shelf/        ShelfPanel, ShelfController, ShelfViewModel, views
-  Editors/      TextEditorWindow, CropWindow, SaveAsDialog
-  Settings/     Settings and onboarding windows
-  Support/      Preferences, Accessibility, LoginItem, helpers
-ClipKeeperTests/
-scripts/        build.sh, make-icon.swift
-docs/           PLAN.md
-```
-
-Data lives in `~/Library/Application Support/ClipKeeper/`: a SQLite database
-and a `blobs` folder with pasteboard snapshots, thumbnails, and favicons.
+- [docs/BUILDING.md](docs/BUILDING.md): build with SwiftPM or Xcode, tests,
+  code signing, debug hooks.
+- [docs/ROADMAP.md](docs/ROADMAP.md): what comes next, in phases.
+- [docs/COMPETITIVE-ANALYSIS.md](docs/COMPETITIVE-ANALYSIS.md): how
+  ClipKeeper compares with the other clipboard managers.
+- [docs/PLAN.md](docs/PLAN.md): the design as agreed before implementation.
+- Source layout: `ClipKeeper/` holds the app in folders per concern
+  (Clipboard, Storage, Shelf, Keys, Editors, Settings). `ClipKeeperTests/`
+  holds the Swift Testing suites.

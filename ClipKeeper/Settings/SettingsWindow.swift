@@ -7,6 +7,16 @@ extension KeyboardShortcuts.Name {
     static let eyedropper = Self("eyedropper")
 }
 
+enum SettingsTab: String, Hashable {
+    case general, keys, privacy, storage
+}
+
+/// The selected settings tab, shared so menu items can open a specific tab.
+@MainActor
+final class SettingsSelection: ObservableObject {
+    @Published var tab: SettingsTab = .general
+}
+
 /// Owns the Settings window.
 @MainActor
 final class SettingsWindowController {
@@ -14,6 +24,12 @@ final class SettingsWindowController {
     private let store: ClipStore
     private let bindings: KeyBindingStore
     private let prefs: Preferences
+    private let selection = SettingsSelection()
+    private var escapeMonitor: Any?
+
+    /// True while the Keys tab records a key combination. Escape then cancels
+    /// the recording instead of closing the window.
+    static var isRecordingKeys = false
 
     init(store: ClipStore, bindings: KeyBindingStore, prefs: Preferences = .shared) {
         self.store = store
@@ -21,15 +37,21 @@ final class SettingsWindowController {
         self.prefs = prefs
     }
 
-    func show() {
+    func show(tab: SettingsTab? = nil) {
         if window == nil {
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 520), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 560), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             w.title = "ClipKeeper Settings"
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView(store: store, bindings: bindings, prefs: prefs))
+            w.contentView = NSHostingView(rootView: SettingsView(store: store, bindings: bindings, prefs: prefs, selection: selection))
             w.center()
             window = w
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, event.keyCode == 53, event.window === self.window, !SettingsWindowController.isRecordingKeys else { return event }
+                self.window?.close()
+                return nil
+            }
         }
+        if let tab { selection.tab = tab }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
@@ -39,19 +61,24 @@ struct SettingsView: View {
     let store: ClipStore
     @ObservedObject var bindings: KeyBindingStore
     @ObservedObject var prefs: Preferences
+    @ObservedObject var selection: SettingsSelection
 
     var body: some View {
-        TabView {
+        TabView(selection: $selection.tab) {
             GeneralSettingsView(prefs: prefs)
                 .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsTab.general)
             KeybindingsSettingsView(bindings: bindings)
                 .tabItem { Label("Keys", systemImage: "keyboard") }
+                .tag(SettingsTab.keys)
             PrivacySettingsView(prefs: prefs)
                 .tabItem { Label("Privacy", systemImage: "hand.raised") }
+                .tag(SettingsTab.privacy)
             StorageSettingsView(store: store, prefs: prefs)
                 .tabItem { Label("Storage", systemImage: "internaldrive") }
+                .tag(SettingsTab.storage)
         }
-        .frame(width: 620, height: 520)
+        .frame(width: 620, height: 560)
     }
 }
 
@@ -133,7 +160,7 @@ struct KeybindingsSettingsView: View {
     @State private var monitor: Any? = nil
 
     private var groups: [(String, [KeyAction])] {
-        let order = ["Navigation", "Paste", "Slots", "Clip", "Selection"]
+        let order = ["Navigation", "Paste", "Slots", "Clip", "Selection", "Collections"]
         return order.map { g in (g, KeyAction.allCases.filter { $0.group == g }) }
     }
 
@@ -153,26 +180,33 @@ struct KeybindingsSettingsView: View {
                                                 Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
                                             }
                                             .buttonStyle(.plain).foregroundStyle(.secondary)
+                                            .help("Remove this key combination")
                                         }
                                         .padding(.horizontal, 6).padding(.vertical, 3)
                                         .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
                                     }
-                                    Button {
-                                        if recording == action { stopRecording() } else { startRecording(action) }
-                                    } label: {
-                                        Text(recording == action ? "Press keys…" : "+")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .padding(.horizontal, 6).padding(.vertical, 3)
-                                            .background(recording == action ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 5))
+                                    if bindings.combos(for: action).isEmpty {
+                                        Text("none").font(.caption).foregroundStyle(.tertiary)
                                     }
-                                    .buttonStyle(.plain)
                                 }
                                 Spacer()
+                                Button {
+                                    if recording == action { stopRecording() } else { startRecording(action) }
+                                } label: {
+                                    Text(recording == action ? "Press keys…" : "+")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .frame(minWidth: 22)
+                                        .padding(.horizontal, 6).padding(.vertical, 3)
+                                        .background(recording == action ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 5))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Add a key combination for this action")
                                 Button("Reset") { bindings.resetToDefaults(action) }
                                     .font(.caption)
                                     .buttonStyle(.plain)
                                     .foregroundStyle(.secondary)
                                     .disabled(bindings.combos(for: action) == action.defaultCombos)
+                                    .help("Restore the default keys for this action")
                             }
                             .padding(.vertical, 2)
                         }
@@ -194,6 +228,7 @@ struct KeybindingsSettingsView: View {
     private func startRecording(_ action: KeyAction) {
         stopRecording()
         recording = action
+        SettingsWindowController.isRecordingKeys = true
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard let current = recording else { return event }
             if event.keyCode == 53 { stopRecording(); return nil }
@@ -210,6 +245,7 @@ struct KeybindingsSettingsView: View {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
         recording = nil
+        SettingsWindowController.isRecordingKeys = false
     }
 }
 
@@ -270,36 +306,18 @@ struct StorageSettingsView: View {
     var body: some View {
         Form {
             Section("History limits") {
-                Toggle("Keep at most", isOn: Binding(get: { prefs.historyLimitEnabled }, set: { prefs.historyLimitEnabled = $0; store.applyRetention() }))
-                HStack {
-                    TextField("Count", value: Binding(get: { prefs.historyLimit }, set: { prefs.historyLimit = $0 }), format: .number)
-                        .frame(width: 80)
-                        .disabled(!prefs.historyLimitEnabled)
-                    Text("clips in History").foregroundStyle(prefs.historyLimitEnabled ? .primary : .secondary)
-                    Spacer()
-                    if !prefs.historyLimitEnabled { Text("Unlimited").foregroundStyle(.secondary) }
-                }
-                Toggle("Delete clips older than", isOn: Binding(get: { prefs.ageLimitEnabled }, set: { prefs.ageLimitEnabled = $0; store.applyRetention() }))
-                HStack {
-                    TextField("Days", value: Binding(get: { prefs.ageLimitDays }, set: { prefs.ageLimitDays = $0 }), format: .number)
-                        .frame(width: 80)
-                        .disabled(!prefs.ageLimitEnabled)
-                    Text("days").foregroundStyle(prefs.ageLimitEnabled ? .primary : .secondary)
-                    Spacer()
-                    if !prefs.ageLimitEnabled { Text("Unlimited").foregroundStyle(.secondary) }
-                }
+                limitRow(label: "Keep at most", unit: "clips in History",
+                         enabled: Binding(get: { prefs.historyLimitEnabled }, set: { prefs.historyLimitEnabled = $0; store.applyRetention() }),
+                         value: Binding(get: { prefs.historyLimit }, set: { prefs.historyLimit = $0 }))
+                limitRow(label: "Delete clips older than", unit: "days",
+                         enabled: Binding(get: { prefs.ageLimitEnabled }, set: { prefs.ageLimitEnabled = $0; store.applyRetention() }),
+                         value: Binding(get: { prefs.ageLimitDays }, set: { prefs.ageLimitDays = $0 }))
                 Text(ruleText).font(.caption).foregroundStyle(.secondary)
             }
             Section("Images") {
-                Toggle("Skip images larger than", isOn: Binding(get: { prefs.imageLimitEnabled }, set: { prefs.imageLimitEnabled = $0 }))
-                HStack {
-                    TextField("MB", value: Binding(get: { prefs.imageLimitMB }, set: { prefs.imageLimitMB = $0 }), format: .number)
-                        .frame(width: 80)
-                        .disabled(!prefs.imageLimitEnabled)
-                    Text("MB").foregroundStyle(prefs.imageLimitEnabled ? .primary : .secondary)
-                    Spacer()
-                    if !prefs.imageLimitEnabled { Text("Unlimited").foregroundStyle(.secondary) }
-                }
+                limitRow(label: "Skip images larger than", unit: "MB",
+                         enabled: Binding(get: { prefs.imageLimitEnabled }, set: { prefs.imageLimitEnabled = $0 }),
+                         value: Binding(get: { prefs.imageLimitMB }, set: { prefs.imageLimitMB = $0 }))
             }
             Section("Usage") {
                 HStack {
@@ -318,6 +336,23 @@ struct StorageSettingsView: View {
             Button("Clear History", role: .destructive) { store.clearHistory() }
             Button("Cancel", role: .cancel) {}
         }
+    }
+
+    /// One line: a switch, the label, the number, the unit, and "Unlimited" when off.
+    private func limitRow(label: String, unit: String, enabled: Binding<Bool>, value: Binding<Int>) -> some View {
+        HStack(spacing: 8) {
+            Toggle("", isOn: enabled).labelsHidden()
+            Text(label)
+            TextField("", value: value, format: .number)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 70)
+                .multilineTextAlignment(.trailing)
+                .disabled(!enabled.wrappedValue)
+            Text(unit)
+            Spacer()
+            Text(enabled.wrappedValue ? "" : "Unlimited").foregroundStyle(.secondary)
+        }
+        .foregroundStyle(enabled.wrappedValue ? .primary : .secondary)
     }
 
     private var ruleText: String {

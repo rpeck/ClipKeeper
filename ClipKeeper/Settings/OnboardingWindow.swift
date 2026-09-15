@@ -13,7 +13,7 @@ final class OnboardingWindowController {
     }
 
     func show(onDone: @escaping () -> Void) {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 460), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 620), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "Welcome to ClipKeeper"
         w.isReleasedWhenClosed = false
         w.contentView = NSHostingView(rootView: OnboardingView(prefs: prefs) { [weak self] in
@@ -32,7 +32,8 @@ final class OnboardingWindowController {
 struct OnboardingView: View {
     @ObservedObject var prefs: Preferences
     let onDone: () -> Void
-    @State private var step = 0
+    // CLIPKEEPER_ONBOARDING_STEP opens a given page, for debug snapshots.
+    @State private var step = Int(ProcessInfo.processInfo.environment["CLIPKEEPER_ONBOARDING_STEP"] ?? "") ?? 0
     @State private var trusted = Accessibility.isTrusted
     @State private var loginEnabled = LoginItem.isEnabled
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -66,7 +67,7 @@ struct OnboardingView: View {
             }
             .padding(14)
         }
-        .frame(width: 520, height: 460)
+        .frame(width: 560, height: 620)
         .onReceive(timer) { _ in
             trusted = Accessibility.isTrusted
             loginEnabled = LoginItem.isEnabled
@@ -131,7 +132,7 @@ struct OnboardingView: View {
             Text("You are set.").font(.title2.weight(.semibold))
             VStack(alignment: .leading, spacing: 8) {
                 keyLine("⌘⇧V", "Open or close the shelf")
-                keyLine("↑ ↓  or  ⌃N ⌃P", "Move between clips")
+                keyLine("↓ ↑  ⌃N ⌃P  ⌃J ⌃K", "Move between clips")
                 keyLine("← →  or  ⌃B ⌃F", "Move between History and your collections")
                 keyLine("⏎", "Paste the selected clip")
                 keyLine("⇧⏎", "Paste as plain text")
@@ -139,8 +140,9 @@ struct OnboardingView: View {
                 keyLine("␣", "Full preview")
                 keyLine("⌘E", "Edit text or crop an image")
                 keyLine("⌘S", "Save the clip as a file")
+                keyLine("Mouse", "Rest the pointer at the right screen edge to open the shelf")
             }
-            Text("Every key is changeable in Settings › Keys.").font(.caption).foregroundStyle(.tertiary)
+            Text("Every key is changeable in Settings › Keys. The menu bar icon has the User Guide.").font(.caption).foregroundStyle(.tertiary)
             Spacer()
         }
     }
@@ -151,7 +153,7 @@ struct OnboardingView: View {
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
                 .frame(width: 130, alignment: .leading)
-            Text(what).foregroundStyle(.secondary)
+            Text(what).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

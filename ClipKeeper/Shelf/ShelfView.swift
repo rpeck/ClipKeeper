@@ -11,6 +11,24 @@ struct ShelfView: View {
             VStack(spacing: 0) {
                 searchBar
                 SetTabsView(model: model)
+                if !model.query.isEmpty {
+                    HStack(spacing: 8) {
+                        Text(model.clips.count == 1 ? "1 match" : "\(model.clips.count) matches")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Picker("Sort", selection: $model.searchNewestFirst) {
+                            Text("Best match").tag(false)
+                            Text("Newest").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .controlSize(.small)
+                        .labelsHidden()
+                        .frame(width: 150)
+                        .help("Order the search results by match quality or by time")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+                }
                 Divider().opacity(0.4)
                 clipList
                 Divider().opacity(0.4)
@@ -26,6 +44,12 @@ struct ShelfView: View {
             if let overlay = model.overlay {
                 OverlayHost(model: model, overlay: overlay)
                     .transition(.opacity)
+            }
+
+            // Drag the left edge to change the width.
+            HStack(spacing: 0) {
+                ResizeHandle(model: model)
+                Spacer()
             }
 
             if let toast = model.toast {
@@ -69,13 +93,16 @@ struct ShelfView: View {
                 .buttonStyle(.plain)
             }
             if prefs.isPaused {
-                Label("Paused", systemImage: "pause.fill")
-                    .font(.caption2.weight(.semibold))
-                    .labelStyle(.titleAndIcon)
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(Color.orange.opacity(0.2), in: Capsule())
-                    .foregroundStyle(.orange)
-                    .help("Capture is paused")
+                Button { prefs.isPaused = false } label: {
+                    Label("Paused", systemImage: "pause.fill")
+                        .font(.caption2.weight(.semibold))
+                        .labelStyle(.titleAndIcon)
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(Color.orange.opacity(0.2), in: Capsule())
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+                .help("Capture is paused. Click to resume.")
             }
             Button { model.requestOpenSettings() } label: {
                 Image(systemName: "gearshape").foregroundStyle(.secondary)
@@ -127,9 +154,49 @@ struct ShelfView: View {
     }
 }
 
+/// A thin strip on the left edge. Drag it to change the shelf width.
+struct ResizeHandle: View {
+    @ObservedObject var model: ShelfViewModel
+    @State private var hovering = false
+    @State private var dragging = false
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.accentColor.opacity(hovering || dragging ? 0.35 : 0))
+            .frame(width: 5)
+            .frame(maxHeight: .infinity)
+            .overlay {
+                // A grip in the middle of the edge shows that it can be dragged.
+                Capsule()
+                    .fill(hovering || dragging ? Color.accentColor : Color.primary.opacity(0.28))
+                    .frame(width: 3, height: 36)
+            }
+            .contentShape(Rectangle().inset(by: -3))
+            .onHover { inside in
+                hovering = inside
+                if inside { NSCursor.resizeLeftRight.push() } else if !dragging { NSCursor.pop() }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { _ in
+                        dragging = true
+                        model.requestResize(NSEvent.mouseLocation.x)
+                    }
+                    .onEnded { _ in
+                        dragging = false
+                        model.requestResizeEnd()
+                        if !hovering { NSCursor.pop() }
+                    }
+            )
+            .help("Drag to change the width")
+            .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+}
+
 /// The row of set tabs: History plus each collection.
 struct SetTabsView: View {
     @ObservedObject var model: ShelfViewModel
+    @State private var dropTarget: String? = nil
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -151,10 +218,25 @@ struct SetTabsView: View {
                         }
                         .buttonStyle(.plain)
                         .id(set.id)
+                        .overlay(
+                            Capsule().strokeBorder(Color.accentColor, lineWidth: 2)
+                                .opacity(dropTarget == set.id ? 1 : 0)
+                        )
+                        .onDrop(of: [ClipDrag.typeIdentifier], isTargeted: Binding(
+                            get: { dropTarget == set.id },
+                            set: { dropTarget = $0 ? set.id : (dropTarget == set.id ? nil : dropTarget) }
+                        )) { providers in
+                            ClipDrag.uuid(from: providers) { uuid in
+                                if let uuid { model.dropClip(uuid: uuid, onto: set) }
+                            }
+                            return true
+                        }
                         .contextMenu {
                             if index > 0 {
                                 Button("Rename…") { model.selectSet(index: index); model.renameCurrentCollection() }
                                 Button("Delete Collection…") { model.selectSet(index: index); model.deleteCurrentCollection() }
+                            } else {
+                                Text("History fills on every copy. Drag a clip onto a collection tab to move it.")
                             }
                         }
                     }

@@ -117,7 +117,7 @@ extension MarkdownUI.Theme {
                     .markdownTextStyle { FontFamilyVariant(.monospaced); FontSize(.em(0.88)) }
                     .padding(10)
             }
-            .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
+            .background(Color.primary.opacity(0.05))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .markdownMargin(top: 0, bottom: 10)
         }

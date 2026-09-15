@@ -34,6 +34,8 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
     var charCount: Int
     var hasRich: Bool
     var colorHex: String?
+    /// The formats the source app put on the clipboard, for display: "PNG, TIFF".
+    var formats: String?
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
@@ -64,6 +66,7 @@ extension Clip {
         switch kind {
         case .image:
             var parts: [String] = []
+            if let first = formats?.split(separator: ",").first { parts.append(first.trimmingCharacters(in: .whitespaces)) }
             if let w = imageWidth, let h = imageHeight { parts.append("\(w) × \(h)") }
             parts.append(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))
             return parts.joined(separator: " · ")
@@ -81,6 +84,37 @@ extension Clip {
             if kind == .code, let language { parts.append(CodeLanguage.named(language)?.displayName ?? language) }
             return parts.joined(separator: " · ")
         }
+    }
+
+    /// Multi-line details for the ⓘ tooltip on a card.
+    var detailsTooltip: String {
+        var lines: [String] = []
+        var typeLine = "Type: \(kind.displayName)"
+        if kind == .code, let language { typeLine += " (\(CodeLanguage.named(language)?.displayName ?? language))" }
+        if hasRich, kind != .richText { typeLine += ", with rich text" }
+        lines.append(typeLine)
+        if let formats, !formats.isEmpty { lines.append("On the clipboard as: \(formats)") }
+        switch kind {
+        case .image:
+            if let w = imageWidth, let h = imageHeight { lines.append("Size: \(w) × \(h) pixels") }
+        case .link:
+            if let linkTitle { lines.append("Title: \(linkTitle)") }
+            if let linkHost { lines.append("Site: \(linkHost)") }
+        case .color:
+            if let colorHex, let parsed = ColorParser.parse(colorHex) { lines.append("Color: \(parsed.hex) · \(parsed.rgbString)") }
+        case .files:
+            lines.append(filePaths.count == 1 ? "1 file" : "\(filePaths.count) files")
+        default:
+            lines.append("Length: \(lineCount == 1 ? "1 line" : "\(lineCount) lines"), \(charCount == 1 ? "1 character" : "\(charCount) characters")")
+        }
+        lines.append("Stored: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))")
+        if let sourceAppName { lines.append("Copied from: \(sourceAppName)") }
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        lines.append("Copied: \(f.string(from: createdAt))")
+        if pinned { lines.append("Pinned") }
+        return lines.joined(separator: "\n")
     }
 
     var filePaths: [String] {

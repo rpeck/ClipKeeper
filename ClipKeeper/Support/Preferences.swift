@@ -22,6 +22,7 @@ enum PrefKey {
     static let edgeTriggerEnabled = "edgeTriggerEnabled"
     static let edgeDwell = "edgeDwell"
     static let edgeAutoHide = "edgeAutoHide"
+    static let searchNewestFirst = "searchNewestFirst"
 }
 
 /// Typed access to preferences. Every value has a default.
@@ -51,6 +52,7 @@ final class Preferences: ObservableObject {
             PrefKey.edgeTriggerEnabled: true,
             PrefKey.edgeDwell: 0.3,
             PrefKey.edgeAutoHide: true,
+            PrefKey.searchNewestFirst: false,
         ])
     }
 
@@ -114,6 +116,11 @@ final class Preferences: ObservableObject {
     var edgeAutoHide: Bool {
         get { defaults.bool(forKey: PrefKey.edgeAutoHide) }
         set { defaults.set(newValue, forKey: PrefKey.edgeAutoHide); objectWillChange.send() }
+    }
+    /// Search results: newest first instead of best match first.
+    var searchNewestFirst: Bool {
+        get { defaults.bool(forKey: PrefKey.searchNewestFirst) }
+        set { defaults.set(newValue, forKey: PrefKey.searchNewestFirst); objectWillChange.send() }
     }
     var isPaused: Bool {
         get { defaults.bool(forKey: PrefKey.isPaused) }

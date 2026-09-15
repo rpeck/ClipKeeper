@@ -11,7 +11,9 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
     case toggleSelectMode, selectAll, extendSelectionUp, extendSelectionDown
     case togglePreview
     case close
-    case newCollection
+    case openSettings
+    case openLink
+    case newCollection, renameCollection, deleteCollection
     case slot1, slot2, slot3, slot4, slot5, slot6, slot7, slot8, slot9
 
     var id: String { rawValue }
@@ -32,13 +34,17 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .moveToCollection: return "Move to collection…"
         case .duplicate: return "Duplicate"
         case .delete: return "Delete"
-        case .toggleSelectMode: return "Toggle select mode"
-        case .selectAll: return "Select all"
-        case .extendSelectionUp: return "Extend selection up"
-        case .extendSelectionDown: return "Extend selection down"
+        case .toggleSelectMode: return "Check or uncheck the selected clip"
+        case .selectAll: return "Check all, or uncheck all"
+        case .extendSelectionUp: return "Check and move up"
+        case .extendSelectionDown: return "Check and move down"
         case .togglePreview: return "Toggle full preview"
         case .close: return "Close shelf"
+        case .openSettings: return "Open Settings"
+        case .openLink: return "Open link or reveal file"
         case .newCollection: return "New collection…"
+        case .renameCollection: return "Rename collection…"
+        case .deleteCollection: return "Delete collection…"
         case .slot1: return "Paste slot 1"
         case .slot2: return "Paste slot 2"
         case .slot3: return "Paste slot 3"
@@ -53,11 +59,12 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
 
     var group: String {
         switch self {
-        case .moveUp, .moveDown, .previousSet, .nextSet, .togglePreview, .close: return "Navigation"
+        case .moveUp, .moveDown, .previousSet, .nextSet, .togglePreview, .close, .openSettings: return "Navigation"
         case .paste, .pastePlain, .copyOnly, .pasteAs: return "Paste"
         case .slot1, .slot2, .slot3, .slot4, .slot5, .slot6, .slot7, .slot8, .slot9: return "Slots"
-        case .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .newCollection: return "Clip"
+        case .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .openLink: return "Clip"
         case .toggleSelectMode, .selectAll, .extendSelectionUp, .extendSelectionDown: return "Selection"
+        case .newCollection, .renameCollection, .deleteCollection: return "Collections"
         }
     }
 
@@ -82,8 +89,8 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
 
     var defaultCombos: [KeyCombo] {
         switch self {
-        case .moveUp: return [KeyCombo("up"), KeyCombo("p", [.control])]
-        case .moveDown: return [KeyCombo("down"), KeyCombo("n", [.control])]
+        case .moveUp: return [KeyCombo("up"), KeyCombo("p", [.control]), KeyCombo("k", [.control])]
+        case .moveDown: return [KeyCombo("down"), KeyCombo("n", [.control]), KeyCombo("j", [.control])]
         case .previousSet: return [KeyCombo("left"), KeyCombo("b", [.control]), KeyCombo("tab", [.shift])]
         case .nextSet: return [KeyCombo("right"), KeyCombo("f", [.control]), KeyCombo("tab")]
         case .paste: return [KeyCombo("return")]
@@ -102,7 +109,11 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .extendSelectionDown: return [KeyCombo("down", [.shift])]
         case .togglePreview: return [KeyCombo("space"), KeyCombo("y", [.command])]
         case .close: return [KeyCombo("escape")]
+        case .openSettings: return [KeyCombo(",", [.command])]
+        case .openLink: return [KeyCombo("o", [.command])]
         case .newCollection: return [KeyCombo("n", [.command])]
+        case .renameCollection: return [KeyCombo("r", [.command])]
+        case .deleteCollection: return []
         case .slot1: return [KeyCombo("1", [.command])]
         case .slot2: return [KeyCombo("2", [.command])]
         case .slot3: return [KeyCombo("3", [.command])]

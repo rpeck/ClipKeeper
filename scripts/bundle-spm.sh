@@ -29,6 +29,9 @@ for b in .build/release/*.bundle; do
   [[ -d "$b" ]] && cp -R "$b" "$APP/Contents/Resources/"
 done
 
+# The user guide, opened from the menu bar.
+cp docs/USER-GUIDE.md "$APP/Contents/Resources/USER-GUIDE.md"
+
 # Icon: build an .icns from the PNG set.
 TMPICONSET="$(mktemp -d)/AppIcon.iconset"
 mkdir -p "$TMPICONSET"

@@ -137,6 +137,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
+        let guideItem = NSMenuItem(title: "User Guide", action: #selector(openUserGuide), keyEquivalent: "")
+        guideItem.target = self
+        menu.addItem(guideItem)
         let about = NSMenuItem(title: "About ClipKeeper", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
@@ -165,6 +168,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openSettings() { settings.show() }
+
+    @objc private func openKeySettings() { settings.show(tab: .keys) }
+
+    @objc private func openUserGuide() {
+        if let url = Bundle.main.url(forResource: "USER-GUIDE", withExtension: "md") {
+            NSWorkspace.shared.open(url)
+        } else if let url = URL(string: "https://github.com/rpeck/ClipKeeper/blob/main/docs/USER-GUIDE.md") {
+            NSWorkspace.shared.open(url)
+        }
+    }
 
     @objc private func pickColor() {
         NSColorSampler().show { [weak self] color in

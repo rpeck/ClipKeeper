@@ -37,8 +37,8 @@ final class ShelfViewModel: ObservableObject {
     @Published private(set) var currentSetIndex: Int = 0
     @Published private(set) var clips: [Clip] = []
     @Published var selectedIndex: Int = 0
+    /// Checked clips. Bulk actions apply to these when any are checked.
     @Published var selectedUUIDs: Set<String> = []
-    @Published var selectMode: Bool = false
     @Published var showFullPreview: Bool = false
     @Published var overlay: Overlay? = nil
     @Published var overlaySelection: Int = 0
@@ -46,6 +46,13 @@ final class ShelfViewModel: ObservableObject {
     @Published var toast: String? = nil
     @Published var scrollTarget: String? = nil
     @Published var searchFocused: Bool = true
+    /// Search order: newest first, or best match first. Remembered in Preferences.
+    @Published var searchNewestFirst: Bool = Preferences.shared.searchNewestFirst {
+        didSet {
+            prefs.searchNewestFirst = searchNewestFirst
+            if !query.isEmpty { reload(keepSelection: false) }
+        }
+    }
 
     var requestClose: () -> Void = {}
     var requestPaste: (Clip, PasteVariant) -> Void = { _, _ in }
@@ -53,6 +60,9 @@ final class ShelfViewModel: ObservableObject {
     var requestEdit: (Clip) -> Void = { _ in }
     var requestSaveAs: ([Clip]) -> Void = { _ in }
     var requestOpenSettings: () -> Void = {}
+    /// Called while the left-edge handle is dragged, with the mouse x in screen coordinates.
+    var requestResize: (CGFloat) -> Void = { _ in }
+    var requestResizeEnd: () -> Void = {}
 
     private var toastTask: Task<Void, Never>?
     private var storeObservation: Any?
@@ -90,10 +100,11 @@ final class ShelfViewModel: ObservableObject {
         return clips[max(0, min(selectedIndex, clips.count - 1))]
     }
 
-    /// Clips an action applies to: the checked clips in select mode, else the selected clip.
+    /// Clips an action applies to: the checked clips when any are checked, else the selected clip.
     var actionTargets: [Clip] {
-        if selectMode, !selectedUUIDs.isEmpty {
-            return clips.filter { selectedUUIDs.contains($0.uuid) }
+        if !selectedUUIDs.isEmpty {
+            let checked = clips.filter { selectedUUIDs.contains($0.uuid) }
+            if !checked.isEmpty { return checked }
         }
         return selectedClip.map { [$0] } ?? []
     }
@@ -107,7 +118,6 @@ final class ShelfViewModel: ObservableObject {
         needsReload = false
         overlay = nil
         showFullPreview = false
-        selectMode = false
         selectedUUIDs = []
         toast = nil
         if !query.isEmpty { query = "" } else { reload(keepSelection: false) }
@@ -119,7 +129,7 @@ final class ShelfViewModel: ObservableObject {
     func reload(keepSelection: Bool) {
         let previous = keepSelection ? selectedClip?.uuid : nil
         if currentSetIndex >= sets.count { currentSetIndex = max(0, sets.count - 1) }
-        clips = store.clips(in: currentSet, query: query)
+        clips = store.clips(in: currentSet, query: query, newestFirst: searchNewestFirst)
         if let previous, let idx = clips.firstIndex(where: { $0.uuid == previous }) {
             selectedIndex = idx
         } else {
@@ -146,7 +156,6 @@ final class ShelfViewModel: ObservableObject {
 
     func toggleChecked(_ clip: Clip) {
         if selectedUUIDs.contains(clip.uuid) { selectedUUIDs.remove(clip.uuid) } else { selectedUUIDs.insert(clip.uuid) }
-        if !selectedUUIDs.isEmpty { selectMode = true }
     }
 
     func showToast(_ message: String) {
@@ -280,16 +289,14 @@ final class ShelfViewModel: ObservableObject {
             }
             return true
         case .toggleSelectMode:
-            selectMode.toggle()
-            if !selectMode { selectedUUIDs = [] } else if let c = selectedClip { selectedUUIDs.insert(c.uuid) }
+            if let c = selectedClip { toggleChecked(c) }
             return true
         case .selectAll:
-            selectMode = true
-            selectedUUIDs = Set(clips.map(\.uuid))
+            let all = Set(clips.map(\.uuid))
+            selectedUUIDs = selectedUUIDs == all ? [] : all
             return true
         case .extendSelectionUp, .extendSelectionDown:
             guard !clips.isEmpty else { return true }
-            selectMode = true
             selectedUUIDs.insert(clips[selectedIndex].uuid)
             let next = action == .extendSelectionUp ? selectedIndex - 1 : selectedIndex + 1
             select(index: next)
@@ -303,14 +310,54 @@ final class ShelfViewModel: ObservableObject {
                 self.showToast("Created \(c.name)")
             }
             return true
+        case .renameCollection:
+            if case .collection = currentSet { renameCurrentCollection() } else { showToast("History cannot be renamed") }
+            return true
+        case .deleteCollection:
+            if case .collection = currentSet { deleteCurrentCollection() } else { showToast("History cannot be deleted") }
+            return true
+        case .openSettings:
+            requestOpenSettings()
+            return true
+        case .openLink:
+            guard let clip = selectedClip else { return true }
+            openLink(of: clip)
+            return true
         }
+    }
+
+    /// Opens a link clip in the default browser, or reveals file clips in Finder.
+    func openLink(of clip: Clip) {
+        switch clip.kind {
+        case .link:
+            if let url = URL(string: clip.text) { NSWorkspace.shared.open(url); requestClose() }
+        case .files:
+            let urls = clip.filePaths.map { URL(fileURLWithPath: $0) }
+            if !urls.isEmpty { NSWorkspace.shared.activateFileViewerSelecting(urls); requestClose() }
+        default:
+            // Any URL inside the text opens too.
+            if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue),
+               let match = detector.firstMatch(in: clip.text, range: NSRange(clip.text.startIndex..., in: clip.text)),
+               let url = match.url {
+                NSWorkspace.shared.open(url)
+                requestClose()
+            } else {
+                showToast("No link in this clip")
+            }
+        }
+    }
+
+    /// Drag and drop target: a clip dragged onto a set tab moves there.
+    func dropClip(uuid: String, onto set: ClipSet) {
+        guard let clip = store.clip(uuid: uuid), clip.collectionID != set.collectionID else { return }
+        store.move([clip], to: set)
+        showToast("Moved to \(set.name)")
     }
 
     private func deleteNow(_ targets: [Clip]) {
         let idx = selectedIndex
         store.delete(targets)
         selectedUUIDs = []
-        if selectMode, clips.isEmpty { selectMode = false }
         select(index: idx)
         showToast(targets.count == 1 ? "Deleted" : "Deleted \(targets.count) clips")
     }
@@ -359,7 +406,6 @@ final class ShelfViewModel: ObservableObject {
             guard let set = self.sets.first(where: { $0.id == item.id }) else { return }
             self.store.move(targets, to: set)
             self.selectedUUIDs = []
-            if self.selectMode { self.selectMode = false }
             self.showToast("Moved to \(set.name)")
         }
     }

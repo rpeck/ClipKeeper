@@ -41,10 +41,14 @@ final class ShelfController {
         viewModel.requestEdit = { [weak self] clip in self?.edit(clip) }
         viewModel.requestSaveAs = { [weak self] clips in self?.saveAs(clips) }
         viewModel.requestOpenSettings = { [weak self] in self?.hide { self?.openSettings() } }
+        viewModel.requestResize = { [weak self] mouseX in self?.resize(toMouseX: mouseX) }
+        viewModel.requestResizeEnd = { [weak self] in self?.finishResize() }
 
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isVisible, !self.isAnimating else { return }
+                // A popover or other child window of the shelf took the key. Stay open.
+                if let key = NSApp.keyWindow, key !== self.panel, key.parent === self.panel || key.className.contains("Popover") { return }
                 self.hide()
             }
         }
@@ -108,6 +112,21 @@ final class ShelfController {
                 completion?()
             }
         })
+    }
+
+    // MARK: Resize by dragging the left edge
+
+    /// Sets the width so the left edge follows the mouse. The right edge stays.
+    private func resize(toMouseX mouseX: CGFloat) {
+        var frame = panel.frame
+        let newWidth = max(200, min(800, frame.maxX - mouseX))
+        frame.origin.x = frame.maxX - newWidth
+        frame.size.width = newWidth
+        panel.setFrame(frame, display: true)
+    }
+
+    private func finishResize() {
+        prefs.shelfWidth = panel.frame.width
     }
 
     /// The target screen is the one with the focused window, else the mouse.
