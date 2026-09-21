@@ -33,8 +33,8 @@ struct CropView: View {
     let onFinish: (CGRect?) -> Void
 
     @State private var model: CropModel
-    @State private var dragMode: CropModel.DragMode? = nil
-    @State private var handleOrigin: CGRect? = nil
+    @State private var dragMode: CropModel.DragMode?
+    @State private var handleOrigin: CGRect?
 
     init(image: NSImage, pixelSize: CGSize, onFinish: @escaping (CGRect?) -> Void) {
         self.image = image

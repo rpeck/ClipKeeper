@@ -7,12 +7,16 @@ import PackageDescription
 let package = Package(
     name: "ClipKeeper",
     platforms: [.macOS("15.0")],
+    // Exact versions. Package.resolved pins the commit of each, including the
+    // transitive swift-cmark and NetworkImage. Update on purpose: bump here,
+    // run `swift package update <name>`, run scripts/audit-deps.sh, review the
+    // changelog, then commit Package.resolved with the change.
     dependencies: [
-        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.1"),
-        .package(url: "https://github.com/raspu/Highlightr", from: "2.3.0"),
+        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", exact: "2.4.1"),
+        .package(url: "https://github.com/raspu/Highlightr", exact: "2.3.0"),
         // 1.16.0 added #Preview macros, which the Command Line Tools toolchain cannot expand.
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", "1.10.0"..<"1.16.0"),
-        .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.1"),
+        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "1.15.0"),
+        .package(url: "https://github.com/groue/GRDB.swift", exact: "7.11.1"),
     ],
     targets: [
         .executableTarget(

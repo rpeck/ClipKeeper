@@ -17,8 +17,7 @@ struct KeyHintBar: View {
             if let clip, clip.kind != .image, clip.kind != .text || clip.hasRich { hints.append((combo(.pastePlain), "Plain")) }
             if model.canPasteIntoApp { hints.append((combo(.copyOnly), "Copy only")) }
             hints.append((combo(.pasteAs), "\(pasteWord) as…"))
-            if let clip, clip.kind == .image { hints.append((combo(.edit), "Crop")) }
-            else if let clip, clip.kind != .files { hints.append((combo(.edit), "Edit")) }
+            if let clip, clip.kind == .image { hints.append((combo(.edit), "Crop")) } else if let clip, clip.kind != .files { hints.append((combo(.edit), "Edit")) }
             hints.append((combo(.saveAs), "Save as…"))
             hints.append((combo(.togglePreview), "Preview"))
             hints.append((combo(.moveToCollection), "Move"))

@@ -141,7 +141,7 @@ struct PasteboardSnapshot: Equatable {
             for (type, data) in item {
                 pbItem.setData(data, forType: NSPasteboard.PasteboardType(type))
             }
-            if item[PBType.png] != nil, item[PBType.tiff] == nil, let tiff = NSImage(data: item[PBType.png]!)?.tiffRepresentation {
+            if let png = item[PBType.png], item[PBType.tiff] == nil, let tiff = NSImage(data: png)?.tiffRepresentation {
                 pbItem.setData(tiff, forType: .tiff)
             }
             if index == 0, let bundleID {

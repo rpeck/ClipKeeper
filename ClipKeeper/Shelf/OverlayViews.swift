@@ -70,7 +70,7 @@ struct PickerOverlay: View {
                     .onHover { if $0 { model.overlaySelection = index } }
                 }
             }
-            HintRow(hints: [("↑↓", "Choose"), ("⏎", "Select"), ("esc","Cancel")])
+            HintRow(hints: [("↑↓", "Choose"), ("⏎", "Select"), ("esc", "Cancel")])
         }
     }
 }
@@ -89,7 +89,7 @@ struct PromptOverlay: View {
                 .textFieldStyle(.roundedBorder)
                 .focused($focused)
                 .onSubmit { onCommit(model.promptText) }
-            HintRow(hints: [("⏎", "Save"), ("esc","Cancel")])
+            HintRow(hints: [("⏎", "Save"), ("esc", "Cancel")])
         }
         .onAppear { DispatchQueue.main.async { focused = true } }
     }
@@ -114,7 +114,7 @@ struct ConfirmOverlay: View {
                     .keyboardShortcut(.defaultAction)
                     .tint(.red)
             }
-            HintRow(hints: [("⏎", confirmTitle), ("esc","Cancel")])
+            HintRow(hints: [("⏎", confirmTitle), ("esc", "Cancel")])
         }
     }
 }

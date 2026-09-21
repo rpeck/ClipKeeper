@@ -13,7 +13,8 @@ final class Database {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             return dir
         }
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let fallback = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support", isDirectory: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fallback
         let dir = base.appendingPathComponent("ClipKeeper", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir

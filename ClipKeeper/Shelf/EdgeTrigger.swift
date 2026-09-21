@@ -37,7 +37,7 @@ final class EdgeTrigger {
     private func tick() {
         guard prefs.edgeTriggerEnabled else { edgeSince = nil; return }
         let mouse = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.screens.first(where: { NSPointInRect(NSPoint(x: mouse.x - 1, y: mouse.y), $0.frame) }) else { return }
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: mouse.x - 1, y: mouse.y)) }) else { return }
 
         if shelf.isVisible {
             guard shelf.openedByEdge, prefs.edgeAutoHide else { return }
@@ -58,8 +58,9 @@ final class EdgeTrigger {
         let atEdge = mouse.x >= screen.frame.maxX - edgeWidth
             && mouse.y > screen.frame.minY + 8 && mouse.y < screen.frame.maxY - 8
         if atEdge {
-            if edgeSince == nil { edgeSince = Date() }
-            if Date().timeIntervalSince(edgeSince!) >= prefs.edgeDwell, NSEvent.pressedMouseButtons == 0 {
+            let since = edgeSince ?? Date()
+            edgeSince = since
+            if Date().timeIntervalSince(since) >= prefs.edgeDwell, NSEvent.pressedMouseButtons == 0 {
                 edgeSince = nil
                 mouseEnteredShelf = false
                 shelf.show(on: screen, byEdge: true)

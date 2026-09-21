@@ -63,8 +63,7 @@ struct ClipContentView: View {
         let image = compact ? RenderCache.shared.thumbnail(for: clip, store: store) : RenderCache.shared.fullImage(for: clip, store: store)
         if let image {
             Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+                .resizable().scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: compact ? 260 : .infinity, alignment: .leading)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.primary.opacity(0.1)))
@@ -142,7 +141,7 @@ struct LinkCardView: View {
         HStack(alignment: .top, spacing: 10) {
             Group {
                 if let host = clip.linkHost, let icon = store.blobs.favicon(forHost: host) {
-                    Image(nsImage: icon).resizable().aspectRatio(contentMode: .fit)
+                    Image(nsImage: icon).resizable().scaledToFit()
                 } else {
                     Image(systemName: "globe").font(.system(size: 18)).foregroundStyle(.secondary)
                 }

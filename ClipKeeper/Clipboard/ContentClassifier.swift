@@ -84,7 +84,7 @@ enum ContentClassifier {
         let md = MarkdownDetector.detect(text)
         let code = CodeDetector.detect(text)
         var kind: ClipKind = .text
-        var language: String? = nil
+        var language: String?
         if md.score >= 6 && md.hasStructure {
             kind = .markdown
         } else if code.isCode && code.confidence >= 0.35 {
@@ -162,9 +162,7 @@ enum ContentClassifier {
     /// True when the rich types carry visible formatting beyond a single font.
     private static func looksFormatted(_ snapshot: PasteboardSnapshot) -> Bool {
         var attributed: NSAttributedString?
-        if let d = snapshot.data(for: PBType.rtf) { attributed = NSAttributedString(rtf: d, documentAttributes: nil) }
-        else if let d = snapshot.data(for: PBType.rtfd) { attributed = NSAttributedString(rtfd: d, documentAttributes: nil) }
-        else if let d = snapshot.data(for: PBType.html) { attributed = NSAttributedString(html: d, options: [.characterEncoding: String.Encoding.utf8.rawValue], documentAttributes: nil) }
+        if let d = snapshot.data(for: PBType.rtf) { attributed = NSAttributedString(rtf: d, documentAttributes: nil) } else if let d = snapshot.data(for: PBType.rtfd) { attributed = NSAttributedString(rtfd: d, documentAttributes: nil) } else if let d = snapshot.data(for: PBType.html) { attributed = NSAttributedString(html: d, options: [.characterEncoding: String.Encoding.utf8.rawValue], documentAttributes: nil) }
         guard let a = attributed, a.length > 0 else { return false }
         var fonts = Set<String>()
         var hasLink = false, hasList = false, hasAttachment = false

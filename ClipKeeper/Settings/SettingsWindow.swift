@@ -3,7 +3,7 @@ import KeyboardShortcuts
 import SwiftUI
 
 extension KeyboardShortcuts.Name {
-    static let toggleShelf = Self("toggleShelf", default: .init(.v, modifiers: [.command, .shift]))
+    static let toggleShelf = Self("toggleShelf", default: .init(.v, modifiers: [.control, .command]))
     static let eyedropper = Self("eyedropper")
 }
 
@@ -154,10 +154,65 @@ struct GeneralSettingsView: View {
 
 // MARK: Keybindings
 
+/// One action in the Keys tab: its combos, an add button, and a reset button.
+struct KeyBindingRow: View {
+    let action: KeyAction
+    let combos: [KeyCombo]
+    let isRecording: Bool
+    let isDefault: Bool
+    let onRemove: (KeyCombo) -> Void
+    let onToggleRecording: () -> Void
+    let onReset: () -> Void
+
+    var body: some View {
+        HStack {
+            Text(action.title).frame(width: 190, alignment: .leading)
+            FlowLayout(spacing: 4, rowSpacing: 4) {
+                ForEach(combos, id: \.self) { combo in
+                    comboChip(combo)
+                }
+                if combos.isEmpty {
+                    Text("none").font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            Spacer()
+            Button(action: onToggleRecording) {
+                Text(isRecording ? "Press keys…" : "+")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(minWidth: 22)
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(isRecording ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+            .help("Add a key combination for this action")
+            Button("Reset", action: onReset)
+                .font(.caption)
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .disabled(isDefault)
+                .help("Restore the default keys for this action")
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func comboChip(_ combo: KeyCombo) -> some View {
+        HStack(spacing: 3) {
+            Text(combo.description).font(.system(size: 12, weight: .medium, design: .rounded))
+            Button { onRemove(combo) } label: {
+                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+            }
+            .buttonStyle(.plain).foregroundStyle(.secondary)
+            .help("Remove this key combination")
+        }
+        .padding(.horizontal, 6).padding(.vertical, 3)
+        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
+    }
+}
+
 struct KeybindingsSettingsView: View {
     @ObservedObject var bindings: KeyBindingStore
-    @State private var recording: KeyAction? = nil
-    @State private var monitor: Any? = nil
+    @State private var recording: KeyAction?
+    @State private var monitor: Any?
 
     private var groups: [(String, [KeyAction])] {
         let order = ["Navigation", "Paste", "Slots", "Clip", "Selection", "Collections"]
@@ -170,52 +225,22 @@ struct KeybindingsSettingsView: View {
                 ForEach(groups, id: \.0) { group, actions in
                     Section(group) {
                         ForEach(actions) { action in
-                            HStack {
-                                Text(action.title).frame(width: 190, alignment: .leading)
-                                FlowLayout(spacing: 4, rowSpacing: 4) {
-                                    ForEach(bindings.combos(for: action), id: \.self) { combo in
-                                        HStack(spacing: 3) {
-                                            Text(combo.description).font(.system(size: 12, weight: .medium, design: .rounded))
-                                            Button { bindings.remove(combo, from: action) } label: {
-                                                Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
-                                            }
-                                            .buttonStyle(.plain).foregroundStyle(.secondary)
-                                            .help("Remove this key combination")
-                                        }
-                                        .padding(.horizontal, 6).padding(.vertical, 3)
-                                        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
-                                    }
-                                    if bindings.combos(for: action).isEmpty {
-                                        Text("none").font(.caption).foregroundStyle(.tertiary)
-                                    }
-                                }
-                                Spacer()
-                                Button {
-                                    if recording == action { stopRecording() } else { startRecording(action) }
-                                } label: {
-                                    Text(recording == action ? "Press keys…" : "+")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .frame(minWidth: 22)
-                                        .padding(.horizontal, 6).padding(.vertical, 3)
-                                        .background(recording == action ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 5))
-                                }
-                                .buttonStyle(.plain)
-                                .help("Add a key combination for this action")
-                                Button("Reset") { bindings.resetToDefaults(action) }
-                                    .font(.caption)
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(.secondary)
-                                    .disabled(bindings.combos(for: action) == action.defaultCombos)
-                                    .help("Restore the default keys for this action")
-                            }
-                            .padding(.vertical, 2)
+                            KeyBindingRow(
+                                action: action,
+                                combos: bindings.combos(for: action),
+                                isRecording: recording == action,
+                                isDefault: bindings.combos(for: action) == action.defaultCombos,
+                                onRemove: { bindings.remove($0, from: action) },
+                                onToggleRecording: { if recording == action { stopRecording() } else { startRecording(action) } },
+                                onReset: { bindings.resetToDefaults(action) }
+                            )
                         }
                     }
                 }
             }
             Divider()
             HStack {
-                Text(recording == nil ? "Click + next to an action, then press the keys. Esc cancels. A key combo belongs to one action." : "Recording for “\(recording!.title)”. Press the keys, or Esc to cancel.")
+                Text(statusText)
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Reset All to Defaults") { bindings.resetAll() }
@@ -223,6 +248,13 @@ struct KeybindingsSettingsView: View {
             .padding(10)
         }
         .onDisappear { stopRecording() }
+    }
+
+    private var statusText: String {
+        if let recording {
+            return "Recording for “\(recording.title)”. Press the keys, or Esc to cancel."
+        }
+        return "Click + at the right of an action, then press the keys. Esc cancels. A key combination belongs to one action."
     }
 
     private func startRecording(_ action: KeyAction) {

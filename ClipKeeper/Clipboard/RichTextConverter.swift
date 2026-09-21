@@ -27,7 +27,7 @@ enum RichTextConverter {
     // MARK: Markdown
 
     /// A list marker TextKit put into the text: optional tab, the marker, then a tab or spaces.
-    private static let literalMarker = try! NSRegularExpression(pattern: #"^[\t ]*(?:[•◦▪‣\-\*·]|\d+[.)]?|[a-zA-Z][.)])[\t ]+"#)
+    private static let literalMarker = compileRegex(pattern: #"^[\t ]*(?:[•◦▪‣\-\*·]|\d+[.)]?|[a-zA-Z][.)])[\t ]+"#)
 
     /// Converts an attributed string to Markdown. Handles headings (by font
     /// size), bold, italic, code (monospaced font), links, strikethrough,
@@ -47,7 +47,7 @@ enum RichTextConverter {
             let paragraphRange = nsText.paragraphRange(for: NSRange(location: location, length: 0))
             var sub = attributed.attributedSubstring(from: paragraphRange)
             // TextKit writes list markers into the text as "\t•\t" or "\t1.\t". Remove them.
-            var literalMarkerKind: String? = nil
+            var literalMarkerKind: String?
             if let m = literalMarker.firstMatch(in: sub.string, range: NSRange(location: 0, length: sub.length)), m.range.length < sub.length {
                 let marker = (sub.string as NSString).substring(with: m.range).trimmingCharacters(in: .whitespaces)
                 literalMarkerKind = marker.first?.isNumber == true || marker.first?.isLetter == true ? "ordered" : "bullet"

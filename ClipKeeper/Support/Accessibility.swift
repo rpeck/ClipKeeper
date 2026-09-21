@@ -27,14 +27,20 @@ enum Accessibility {
         guard isTrusted, let app = NSWorkspace.shared.frontmostApplication else { return nil }
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var window: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &window) == .success, let win = window else { return nil }
+        guard AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &window) == .success,
+              let win = window, CFGetTypeID(win) == AXUIElementGetTypeID() else { return nil }
+        // The type id check above proves the casts. Core Foundation types have no conditional cast.
+        // swiftlint:disable:next force_cast
         let axWindow = win as! AXUIElement
         var posRef: CFTypeRef?, sizeRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(axWindow, kAXPositionAttribute as CFString, &posRef) == .success,
               AXUIElementCopyAttributeValue(axWindow, kAXSizeAttribute as CFString, &sizeRef) == .success,
-              let p = posRef, let s = sizeRef else { return nil }
+              let p = posRef, let s = sizeRef,
+              CFGetTypeID(p) == AXValueGetTypeID(), CFGetTypeID(s) == AXValueGetTypeID() else { return nil }
         var point = CGPoint.zero, size = CGSize.zero
+        // swiftlint:disable:next force_cast
         AXValueGetValue(p as! AXValue, .cgPoint, &point)
+        // swiftlint:disable:next force_cast
         AXValueGetValue(s as! AXValue, .cgSize, &size)
         // AX coordinates have a top-left origin on the main display. Flip to AppKit.
         guard let main = NSScreen.screens.first else { return nil }

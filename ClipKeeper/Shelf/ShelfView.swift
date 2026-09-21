@@ -196,7 +196,7 @@ struct ResizeHandle: View {
 /// The row of set tabs: History plus each collection.
 struct SetTabsView: View {
     @ObservedObject var model: ShelfViewModel
-    @State private var dropTarget: String? = nil
+    @State private var dropTarget: String?
 
     var body: some View {
         ScrollViewReader { proxy in

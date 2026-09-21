@@ -89,7 +89,7 @@ final class Paster {
             guard let original else { return .plainText(clip.text) }
             if let d = original.data(for: PBType.html), let s = String(data: d, encoding: .utf8) { return .plainText(s) }
             guard let a = RichTextConverter.attributedString(from: original), let d = RichTextConverter.htmlData(a) else { return .plainText(clip.text) }
-            return .plainText(String(decoding: d, as: UTF8.self))
+            return .plainText(String(bytes: d, encoding: .utf8) ?? clip.text)
         case .image(let format):
             guard let original, let source = PBType.imageTypes.compactMap({ original.data(for: $0) }).first,
                   let converted = ImageConversion.convert(source, to: format) else { return original }

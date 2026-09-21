@@ -3,7 +3,7 @@
 A clipboard manager for macOS that keeps your hands on the keyboard.
 
 Everything you copy lands in a shelf at the right edge of the screen. Press
-⌘⇧V, or move the mouse to the right edge of your screen. Move with the arrow
+⌃⌘V, or move the mouse to the right edge of your screen. Move with the arrow
 keys, press Return, and the clip pastes into the app you were in. Text, code,
 Markdown, rich text, images, links, colors, and files each render as what
 they are. Hover or click the ⓘ on a card for its details.
@@ -35,18 +35,20 @@ build it.
 
 ```sh
 git clone <this repository> && cd ClipKeeper
-scripts/make-dev-cert.sh      # once; a local signing identity, see docs/BUILDING.md
-scripts/bundle-spm.sh run     # builds build/spm/ClipKeeper.app and launches it
+scripts/build-with-swiftpm.sh run
 ```
 
-On first launch a welcome window walks you through the hotkey, the
-Accessibility permission, and launch at login. See
-[docs/BUILDING.md](docs/BUILDING.md) for the Xcode build and for code signing.
+The script checks the tools, creates a local signing identity on the first
+run, builds `build/spm/ClipKeeper.app`, and launches it. When macOS asks
+whether `codesign` may use the new key, click Always Allow. On first launch
+a welcome window walks you through the hotkey, the Accessibility permission,
+and launch at login. See [docs/BUILDING.md](docs/BUILDING.md) for the Xcode
+method, code signing, and dependency safety.
 
 ## Quick start
 
 **Open the shelf**
-- Press ⌘⇧V. Press it again, or Esc, to close.
+- Press ⌃⌘V. Press it again, or Esc, to close.
 - Or rest the mouse at the right edge of the screen for a moment.
 - Drag the grip on the shelf's left edge to change its width.
 
@@ -96,7 +98,7 @@ type, and the answers to common problems.
 
 | Key | Action |
 |---|---|
-| ⌘⇧V | Open or close the shelf |
+| ⌃⌘V | Open or close the shelf |
 | ↓ ↑ ⌃N ⌃P ⌃J ⌃K | Move the selection |
 | ← → ⌃B ⌃F ⇥ ⇧⇥ | Switch sets |
 | ⏎ ⇧⏎ ⌥⏎ ⌘⇧⏎ | Paste, paste plain, copy only, paste as… |

@@ -52,11 +52,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in CodeHighlighter.shared.appearanceChanged() }
         }
 
-        onboarding = OnboardingWindowController(prefs: prefs)
+        let onboardingController = OnboardingWindowController(prefs: prefs)
+        onboarding = onboardingController
         if !prefs.hasCompletedOnboarding {
-            onboarding?.show {}
+            onboardingController.show {}
         }
-        DebugSnapshots.runIfRequested(shelf: shelf, settings: settings, onboarding: onboarding!, store: store)
+        DebugSnapshots.runIfRequested(shelf: shelf, settings: settings, onboarding: onboardingController, store: store)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

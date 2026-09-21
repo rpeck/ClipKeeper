@@ -131,7 +131,7 @@ struct OnboardingView: View {
             Image(systemName: "sparkles").font(.system(size: 40)).foregroundStyle(Color.accentColor)
             Text("You are set.").font(.title2.weight(.semibold))
             VStack(alignment: .leading, spacing: 8) {
-                keyLine("⌘⇧V", "Open or close the shelf")
+                keyLine("⌃⌘V", "Open or close the shelf")
                 keyLine("↓ ↑  ⌃N ⌃P  ⌃J ⌃K", "Move between clips")
                 keyLine("← →  or  ⌃B ⌃F", "Move between History and your collections")
                 keyLine("⏎", "Paste the selected clip")

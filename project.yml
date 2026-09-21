@@ -6,20 +6,21 @@ options:
   createIntermediateGroups: true
   xcodeVersion: "26.3"
 
+# Exact versions, kept equal to Package.swift and Package.resolved.
+# See docs/BUILDING.md, "Dependency safety", before you change one.
 packages:
   MarkdownUI:
     url: https://github.com/gonzalezreal/swift-markdown-ui
-    from: 2.4.1
+    exactVersion: 2.4.1
   Highlightr:
     url: https://github.com/raspu/Highlightr
-    from: 2.3.0
+    exactVersion: 2.3.0
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
-    minVersion: 1.10.0
-    maxVersion: 1.16.0
+    exactVersion: 1.15.0   # 1.16 adds #Preview macros, which the Command Line Tools cannot expand
   GRDB:
     url: https://github.com/groue/GRDB.swift
-    from: 7.11.1
+    exactVersion: 7.11.1
 
 settings:
   base:

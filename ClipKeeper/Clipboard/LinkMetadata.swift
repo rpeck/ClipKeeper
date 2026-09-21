@@ -19,9 +19,9 @@ enum LinkMetadata {
     static func fetch(_ url: URL) async -> Result {
         guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return Result() }
         var result = Result()
-        var iconURL: URL? = nil
+        var iconURL: URL?
         if let (data, response) = try? await session.data(from: url), let http = response as? HTTPURLResponse, (200..<400).contains(http.statusCode) {
-            let head = String(decoding: data.prefix(400_000), as: UTF8.self)
+            let head = String(bytes: data.prefix(400_000), encoding: .utf8) ?? String(bytes: data.prefix(400_000), encoding: .isoLatin1) ?? ""
             result.title = extractTitle(from: head)
             iconURL = extractIconURL(from: head, base: http.url ?? url)
         }
@@ -29,7 +29,7 @@ enum LinkMetadata {
             iconURL = URL(string: "\(scheme)://\(host)/favicon.ico")
         }
         if let iconURL, let (data, response) = try? await session.data(from: iconURL),
-           let http = response as? HTTPURLResponse, http.statusCode == 200, data.count > 0, data.count < 2_000_000,
+           let http = response as? HTTPURLResponse, http.statusCode == 200, !data.isEmpty, data.count < 2_000_000,
            NSImage(data: data) != nil {
             result.faviconData = data
         }
@@ -56,7 +56,7 @@ enum LinkMetadata {
 
     static func extractIconURL(from html: String, base: URL) -> URL? {
         guard let re = try? NSRegularExpression(pattern: #"<link[^>]+>"#, options: [.caseInsensitive]) else { return nil }
-        var best: (score: Int, href: String)? = nil
+        var best: (score: Int, href: String)?
         for m in re.matches(in: html, range: NSRange(html.startIndex..., in: html)) {
             guard let r = Range(m.range, in: html) else { continue }
             let tag = String(html[r]).lowercased()
@@ -70,12 +70,15 @@ enum LinkMetadata {
                 href = String(original[hr]).replacingOccurrences(of: #"(?i)href=["']|["']$"#, with: "", options: .regularExpression)
             }
             var score = 0
-            if rel.contains("apple-touch-icon") { score = 3 }
-            else if rel.split(separator: " ").contains("icon") { score = 2 }
-            else if rel.contains("shortcut icon") { score = 2 }
-            else { continue }
+            if rel.contains("apple-touch-icon") {
+                score = 3
+            } else if rel.split(separator: " ").contains("icon") || rel.contains("shortcut icon") {
+                score = 2
+            } else {
+                continue
+            }
             if tag.contains("svg") { score -= 1 }
-            if best == nil || score > best!.score { best = (score, href) }
+            if score > (best?.score ?? Int.min) { best = (score, href) }
         }
         guard let href = best?.href else { return nil }
         return URL(string: href, relativeTo: base)?.absoluteURL

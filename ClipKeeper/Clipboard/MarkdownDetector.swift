@@ -9,7 +9,7 @@ enum MarkdownDetector {
     }
 
     private static func regex(_ pattern: String, _ options: NSRegularExpression.Options = [.anchorsMatchLines]) -> NSRegularExpression {
-        try! NSRegularExpression(pattern: pattern, options: options)
+        compileRegex(pattern: pattern, options: options)
     }
 
     private static let heading = regex(#"^#{1,6} \S"#)

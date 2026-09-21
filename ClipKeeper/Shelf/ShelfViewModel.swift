@@ -6,8 +6,8 @@ import SwiftUI
 struct PickerItem: Identifiable, Hashable {
     var id: String
     var title: String
-    var subtitle: String? = nil
-    var symbol: String? = nil
+    var subtitle: String?
+    var symbol: String?
 }
 
 /// State for the shelf. All keyboard actions resolve here.
@@ -40,11 +40,11 @@ final class ShelfViewModel: ObservableObject {
     /// Checked clips. Bulk actions apply to these when any are checked.
     @Published var selectedUUIDs: Set<String> = []
     @Published var showFullPreview: Bool = false
-    @Published var overlay: Overlay? = nil
+    @Published var overlay: Overlay?
     @Published var overlaySelection: Int = 0
     @Published var promptText: String = ""
-    @Published var toast: String? = nil
-    @Published var scrollTarget: String? = nil
+    @Published var toast: String?
+    @Published var scrollTarget: String?
     @Published var searchFocused: Bool = true
     /// Search order: newest first, or best match first. Remembered in Preferences.
     @Published var searchNewestFirst: Bool = Preferences.shared.searchNewestFirst {

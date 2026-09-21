@@ -55,9 +55,16 @@ enum Exporter {
             list.append(contentsOf: richOptions(snapshot))
             list.append(ExportOption(kind: .text, title: "Plain Text", fileExtension: "txt", utType: .plainText))
             // Put the original format first.
-            if let snapshot, snapshot.has(PBType.rtfd), let i = list.firstIndex(where: { $0.kind == .rtfd }) { list.insert(list.remove(at: i), at: 0) }
-            else if let snapshot, snapshot.has(PBType.rtf), let i = list.firstIndex(where: { $0.kind == .rtf }) { list.insert(list.remove(at: i), at: 0) }
-            else if let snapshot, snapshot.has(PBType.html), let i = list.firstIndex(where: { $0.kind == .html }) { list.insert(list.remove(at: i), at: 0) }
+            let originalKind: ExportOption.Kind? = {
+                guard let snapshot else { return nil }
+                if snapshot.has(PBType.rtfd) { return .rtfd }
+                if snapshot.has(PBType.rtf) { return .rtf }
+                if snapshot.has(PBType.html) { return .html }
+                return nil
+            }()
+            if let originalKind, let i = list.firstIndex(where: { $0.kind == originalKind }) {
+                list.insert(list.remove(at: i), at: 0)
+            }
             return list
         case .image:
             let current = snapshot?.types.compactMap { ImageConversion.Format.from(pasteboardType: $0) }.first ?? .png

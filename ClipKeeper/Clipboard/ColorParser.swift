@@ -98,7 +98,8 @@ enum ColorParser {
     private static func parseRGB(_ s: String) -> ParsedColor? {
         let lower = s.lowercased()
         guard lower.hasPrefix("rgb(") || lower.hasPrefix("rgba("), lower.hasSuffix(")") else { return nil }
-        let start = lower.index(after: lower.firstIndex(of: "(")!)
+        guard let open = lower.firstIndex(of: "(") else { return nil }
+        let start = lower.index(after: open)
         let body = String(lower[start..<lower.index(before: lower.endIndex)])
         guard let nums = numbers(in: body), nums.count == 3 || nums.count == 4 else { return nil }
         let r = nums[0], g = nums[1], b = nums[2]
@@ -115,7 +116,8 @@ enum ColorParser {
     private static func parseHSL(_ s: String) -> ParsedColor? {
         let lower = s.lowercased()
         guard lower.hasPrefix("hsl(") || lower.hasPrefix("hsla("), lower.hasSuffix(")") else { return nil }
-        let start = lower.index(after: lower.firstIndex(of: "(")!)
+        guard let open = lower.firstIndex(of: "(") else { return nil }
+        let start = lower.index(after: open)
         let body = String(lower[start..<lower.index(before: lower.endIndex)])
         let parts = body.split(whereSeparator: { $0 == "," || $0 == " " || $0 == "/" }).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard parts.count == 3 || parts.count == 4 else { return nil }

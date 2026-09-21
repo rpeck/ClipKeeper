@@ -6,7 +6,7 @@ shelf at the right edge of the screen. You choose a clip with the keyboard, or
 double-click it; it pastes into the app you were using. This guide covers
 every feature. The README has the short version.
 
-Keys are written like this: `⌘⇧V`. Safety notes are marked with 🛡.
+Keys are written like this: `⌃⌘V`. Safety notes are marked with 🛡.
 
 ## Contents
 
@@ -52,8 +52,12 @@ Keys are written like this: `⌘⇧V`. Safety notes are marked with 🛡.
 ClipKeeper lives in the menu bar. It has no Dock icon and no main window.
 On the first launch a welcome window walks you through three steps.
 
-1. **Hotkey.** The default is `⌘⇧V`. If you want to change the hotkey, click
-   the field and press the keys you want.
+1. **Hotkey.** The default is `⌃⌘V` (Control-Command-V). It is free in the
+   common apps; `⌘⇧V` was not, because browsers, Slack, and code editors
+   use it for "Paste and Match Style". Evernote users take note: Evernote
+   claims `⌃⌘V` system-wide for "Paste to Evernote", so pick another key
+   there. To change the hotkey, click the field and press the keys you
+   want.
 2. **Accessibility.** When you tell it to paste a clip, ClipKeeper presses
    `⌘V` for you in the app you came from. macOS asks for the Accessibility
    permission for that.
@@ -85,7 +89,7 @@ The icon fills for a moment each time a copy is recorded.
 
 There are three ways to open the shelf:
 
-- **Hotkey.** Press `⌘⇧V`. Press it again, or press `Escape`, to close.
+- **Hotkey.** Press `⌃⌘V`. Press it again, or press `Escape`, to close.
 - **Mouse.** Rest the pointer at the right edge of the screen for a moment.
   The shelf slides in on that screen. Move the pointer away from the shelf
   and it slides out again.
@@ -481,7 +485,7 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 
 | Key | Action |
 |---|---|
-| `⌘⇧V` | Open or close the shelf (global) |
+| `⌃⌘V` | Open or close the shelf (global) |
 | `↓` `↑` | Move the selection |
 | `⌃N` `⌃P` | Move the selection (Emacs) |
 | `⌃J` `⌃K` | Move the selection (vim) |
@@ -569,6 +573,13 @@ Mouse.
 Open Settings › Keys and look at the action. Some keys yield to the search
 field while it holds text: `←` `→` `⌫` `Space` and `⌃B` `⌃F` `⌃K`. Clear
 the field first, or use `⇥` `⇧⇥` and `⌘⌫`.
+
+**The hotkey opens another app, or does nothing.**
+Another app claims the same global hotkey, and the app that registered it
+first wins. Known claims: Evernote uses `⌃⌘V` for "Paste to Evernote", and
+browsers, Slack, and code editors use `⌘⇧V` for "Paste and Match Style"
+while they are in front. Pick a key that no app on your Mac uses, in
+Settings › General.
 
 **Code shows as plain text, or text shows as code.**
 Detection is a guess from the content. The clip still pastes exactly as it

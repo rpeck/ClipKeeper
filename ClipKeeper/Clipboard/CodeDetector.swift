@@ -57,7 +57,7 @@ enum CodeDetector {
         init(_ pattern: String, _ weight: Double, cap: Double? = nil, caseInsensitive: Bool = false) {
             var opts: NSRegularExpression.Options = [.anchorsMatchLines]
             if caseInsensitive { opts.insert(.caseInsensitive) }
-            regex = try! NSRegularExpression(pattern: pattern, options: opts)
+            regex = compileRegex(pattern: pattern, options: opts)
             self.weight = weight
             self.cap = cap ?? weight * 2
         }
@@ -304,13 +304,13 @@ enum CodeDetector {
         ],
     ]
 
-    private static let proseSentence = try! NSRegularExpression(pattern: #"^[A-Z][^\n{}();=<>\[\]|$#]{40,}[.?!]\s*$"#, options: [.anchorsMatchLines])
-    private static let commentLine = try! NSRegularExpression(pattern: #"^\s*(//|/\*|\*\s|--\s|;;)"#, options: [.anchorsMatchLines])
-    private static let indentedLine = try! NSRegularExpression(pattern: #"^(\t| {2,})\S"#, options: [.anchorsMatchLines])
-    private static let semicolonEnd = try! NSRegularExpression(pattern: #";\s*$"#, options: [.anchorsMatchLines])
-    private static let blockOpen = try! NSRegularExpression(pattern: #"[{:]\s*$"#, options: [.anchorsMatchLines])
-    private static let callSite = try! NSRegularExpression(pattern: #"\b\w+\([^)\n]*\)"#, options: [])
-    private static let operators = try! NSRegularExpression(pattern: #"==|!=|<=|>=|\+=|-=|->|=>|::|&&|\|\||\+\+|--|<<|>>"#, options: [])
+    private static let proseSentence = compileRegex(pattern: #"^[A-Z][^\n{}();=<>\[\]|$#]{40,}[.?!]\s*$"#, options: [.anchorsMatchLines])
+    private static let commentLine = compileRegex(pattern: #"^\s*(//|/\*|\*\s|--\s|;;)"#, options: [.anchorsMatchLines])
+    private static let indentedLine = compileRegex(pattern: #"^(\t| {2,})\S"#, options: [.anchorsMatchLines])
+    private static let semicolonEnd = compileRegex(pattern: #";\s*$"#, options: [.anchorsMatchLines])
+    private static let blockOpen = compileRegex(pattern: #"[{:]\s*$"#, options: [.anchorsMatchLines])
+    private static let callSite = compileRegex(pattern: #"\b\w+\([^)\n]*\)"#, options: [])
+    private static let operators = compileRegex(pattern: #"==|!=|<=|>=|\+=|-=|->|=>|::|&&|\|\||\+\+|--|<<|>>"#, options: [])
 
     private static func count(_ re: NSRegularExpression, _ text: String) -> Int {
         re.numberOfMatches(in: text, range: NSRange(text.startIndex..., in: text))
@@ -392,8 +392,8 @@ enum CodeDetector {
         }
         // YAML needs most lines to be keys or list items.
         if let y = scores["yaml"] {
-            let keyLines = count(try! NSRegularExpression(pattern: #"^\s{0,8}[\w.-]+:(\s.*)?$"#, options: [.anchorsMatchLines]), sample)
-            let listLines = count(try! NSRegularExpression(pattern: #"^\s*- \S"#, options: [.anchorsMatchLines]), sample)
+            let keyLines = count(compileRegex(pattern: #"^\s{0,8}[\w.-]+:(\s.*)?$"#, options: [.anchorsMatchLines]), sample)
+            let listLines = count(compileRegex(pattern: #"^\s*- \S"#, options: [.anchorsMatchLines]), sample)
             let ratio = Double(keyLines + listLines) / Double(lineCount)
             scores["yaml"] = (ratio >= 0.5 && keyLines >= 2 && lineCount >= 2 && !sample.contains(";")) ? y : 0
         }
@@ -425,9 +425,7 @@ enum CodeDetector {
 
         let total = structure + bestScore - penalty
         var isCode = false
-        if bestScore >= 3 && total >= 4 { isCode = true }
-        else if structure >= 4 && total >= 4 { isCode = true }
-        else if lineCount == 1, bestLang == "bash", bestScore >= 2, penalty < 3 { isCode = true }
+        if bestScore >= 3 && total >= 4 { isCode = true } else if structure >= 4 && total >= 4 { isCode = true } else if lineCount == 1, bestLang == "bash", bestScore >= 2, penalty < 3 { isCode = true }
 
         let language: String? = (isCode && bestScore >= 2) ? bestLang : nil
         let confidence = isCode ? min(1, max(0, total) / 10) : 0
