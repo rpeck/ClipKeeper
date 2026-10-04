@@ -110,6 +110,11 @@ final class Database {
                 t.add(column: "formats", .text)
             }
         }
+        migrator.registerMigration("v3-sourcePath") { db in
+            try db.alter(table: "clip") { t in
+                t.add(column: "sourcePath", .text)
+            }
+        }
         try migrator.migrate(queue)
     }
 }

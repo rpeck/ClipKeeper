@@ -34,13 +34,29 @@ final class EdgeTrigger {
         timer = nil
     }
 
+    private let dragPasteboard = NSPasteboard(name: .drag)
+    private var seenDragCount = NSPasteboard(name: .drag).changeCount
+
+    /// True while the mouse button is down and a drag that carries file URLs
+    /// is in progress. The drag pasteboard's change count moves when a drag
+    /// starts, and its contents stay after the drop, so the count is compared
+    /// to the last one seen with the button up.
+    private func isDraggingFiles() -> Bool {
+        if NSEvent.pressedMouseButtons == 0 {
+            seenDragCount = dragPasteboard.changeCount
+            return false
+        }
+        guard dragPasteboard.changeCount != seenDragCount else { return false }
+        return dragPasteboard.types?.contains(.fileURL) ?? false
+    }
+
     private func tick() {
         guard prefs.edgeTriggerEnabled else { edgeSince = nil; return }
         let mouse = NSEvent.mouseLocation
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.screens.first(where: { $0.frame.contains(NSPoint(x: mouse.x - 1, y: mouse.y)) }) else { return }
 
         if shelf.isVisible {
-            guard shelf.openedByEdge, prefs.edgeAutoHide else { return }
+            guard shelf.openedByEdge, prefs.edgeAutoHide, !prefs.shelfPinned else { return }
             // A generous frame: the panel plus a margin, extended to the screen edge.
             var zone = shelf.panelFrame.insetBy(dx: -leaveMargin, dy: -leaveMargin)
             zone.size.width = screen.frame.maxX - zone.minX + 1
@@ -60,7 +76,10 @@ final class EdgeTrigger {
         if atEdge {
             let since = edgeSince ?? Date()
             edgeSince = since
-            if Date().timeIntervalSince(since) >= prefs.edgeDwell, NSEvent.pressedMouseButtons == 0 {
+            // Open with the button up, or during a file drag so the files can
+            // be dropped on the shelf. A window drag does not open it.
+            let buttonUp = NSEvent.pressedMouseButtons == 0
+            if Date().timeIntervalSince(since) >= prefs.edgeDwell, buttonUp || isDraggingFiles() {
                 edgeSince = nil
                 mouseEnteredShelf = false
                 shelf.show(on: screen, byEdge: true)

@@ -13,6 +13,8 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
     case close
     case openSettings
     case openLink
+    case importFiles, importContents
+    case keepShelfOpen
     case newCollection, renameCollection, deleteCollection
     case slot1, slot2, slot3, slot4, slot5, slot6, slot7, slot8, slot9
 
@@ -42,6 +44,9 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .close: return "Close shelf"
         case .openSettings: return "Open Settings"
         case .openLink: return "Open link or reveal file"
+        case .importFiles: return "Import files…"
+        case .importContents: return "Import the contents of the files in this clip"
+        case .keepShelfOpen: return "Keep the shelf open (pin)"
         case .newCollection: return "New collection…"
         case .renameCollection: return "Rename collection…"
         case .deleteCollection: return "Delete collection…"
@@ -59,10 +64,10 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
 
     var group: String {
         switch self {
-        case .moveUp, .moveDown, .previousSet, .nextSet, .togglePreview, .close, .openSettings: return "Navigation"
+        case .moveUp, .moveDown, .previousSet, .nextSet, .togglePreview, .close, .openSettings, .keepShelfOpen: return "Navigation"
         case .paste, .pastePlain, .copyOnly, .pasteAs: return "Paste"
         case .slot1, .slot2, .slot3, .slot4, .slot5, .slot6, .slot7, .slot8, .slot9: return "Slots"
-        case .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .openLink: return "Clip"
+        case .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .openLink, .importFiles, .importContents: return "Clip"
         case .toggleSelectMode, .selectAll, .extendSelectionUp, .extendSelectionDown: return "Selection"
         case .newCollection, .renameCollection, .deleteCollection: return "Collections"
         }
@@ -111,6 +116,9 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .close: return [KeyCombo("escape")]
         case .openSettings: return [KeyCombo(",", [.command])]
         case .openLink: return [KeyCombo("o", [.command])]
+        case .importFiles: return [KeyCombo("i", [.command])]
+        case .importContents: return [KeyCombo("i", [.command, .shift])]
+        case .keepShelfOpen: return [KeyCombo("p", [.command, .shift])]
         case .newCollection: return [KeyCombo("n", [.command])]
         case .renameCollection: return [KeyCombo("r", [.command])]
         case .deleteCollection: return []

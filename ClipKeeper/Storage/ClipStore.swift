@@ -131,7 +131,7 @@ final class ClipStore: ObservableObject {
     /// Stores a new capture. Returns the stored clip, or nil when the content is
     /// empty or unsupported. A duplicate of a History clip moves it to the top.
     @discardableResult
-    func ingest(_ snapshot: PasteboardSnapshot, sourceBundleID: String?, sourceAppName: String?) -> Clip? {
+    func ingest(_ snapshot: PasteboardSnapshot, sourceBundleID: String?, sourceAppName: String?, title titleOverride: String? = nil, sourcePath: String? = nil) -> Clip? {
         let t0 = Date()
         guard let c = ContentClassifier.classify(snapshot) else { return nil }
         if PasteboardMonitor.debug { NSLog("  classified as %@ in %.0f ms", c.kind.rawValue, Date().timeIntervalSince(t0) * 1000) }
@@ -148,13 +148,15 @@ final class ClipStore: ObservableObject {
             updated.sourceBundleID = sourceBundleID ?? existing.sourceBundleID
             updated.sourceAppName = sourceAppName ?? existing.sourceAppName
             updated.formats = snapshot.formatSummary
+            if let titleOverride { updated.title = titleOverride }
+            if let sourcePath { updated.sourcePath = sourcePath }
             try? db.write { db in try updated.update(db) }
             try? blobs.save(snapshot: snapshot, for: existing.uuid)
             bump()
             return updated
         }
 
-        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex, formats: snapshot.formatSummary)
+        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: titleOverride ?? c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: sourcePath)
         do {
             try blobs.save(snapshot: snapshot, for: clip.uuid)
             if let data = c.imageData { blobs.saveThumbnail(from: data, for: clip.uuid) }

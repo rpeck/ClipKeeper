@@ -51,6 +51,7 @@ method, code signing, and dependency safety.
 - Press ⌃⌘V. Press it again, or Esc, to close.
 - Or rest the mouse at the right edge of the screen for a moment.
 - Drag the grip on the shelf's left edge to change its width.
+- ⌘⇧P pins the shelf open for drag and drop. Esc still closes it.
 
 **Pick a clip**
 - ↓ ↑, or ⌃N ⌃P (Emacs), or ⌃J ⌃K (vim) move the selection.
@@ -81,6 +82,14 @@ method, code signing, and dependency safety.
   type, original first.
 - ⌘O opens a link in the browser, or reveals files in Finder.
 
+**Bring files in**
+- ⌘I imports files as separate clips: a Markdown file becomes a Markdown
+  clip, an image file an image clip, and so on. Or drag files onto the
+  shelf.
+- In Finder, select files and press the shortcut you gave the "Add to
+  ClipKeeper" service, set once in System Settings › Keyboard › Services.
+- ⌘⇧I on a Files clip imports the contents of those files.
+
 **Remove**
 - ⌘⌫, or the trash icon on the card. ClipKeeper asks first.
 - Check the boxes on several cards, with a click or ⌘⇧A, for a bulk move,
@@ -105,10 +114,12 @@ type, and the answers to common problems.
 | ⌘1 – ⌘9 | Paste slot 1 to 9 |
 | ␣ (space) | Full preview |
 | ⌘E ⌘S ⌘O | Edit or crop, save as…, open |
+| ⌘I ⌘⇧I | Import files, import a Files clip's contents |
 | ⌘P ⌘M ⌘D ⌘⌫ | Pin, move to collection, duplicate, delete |
 | ⌘N ⌘R | New collection, rename collection |
 | ⌘⇧A ⌘A ⇧↓ ⇧↑ | Check the clip, check all, check and move |
 | ⌘, | Settings |
+| ⌘⇧P | Keep the shelf open |
 | esc | Close |
 
 Change any of them in Settings › Keys.

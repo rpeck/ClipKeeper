@@ -23,6 +23,7 @@ enum PrefKey {
     static let edgeDwell = "edgeDwell"
     static let edgeAutoHide = "edgeAutoHide"
     static let searchNewestFirst = "searchNewestFirst"
+    static let shelfPinned = "shelfPinned"
 }
 
 /// Typed access to preferences. Every value has a default.
@@ -53,6 +54,7 @@ final class Preferences: ObservableObject {
             PrefKey.edgeDwell: 0.3,
             PrefKey.edgeAutoHide: true,
             PrefKey.searchNewestFirst: false,
+            PrefKey.shelfPinned: false,
         ])
     }
 
@@ -121,6 +123,11 @@ final class Preferences: ObservableObject {
     var searchNewestFirst: Bool {
         get { defaults.bool(forKey: PrefKey.searchNewestFirst) }
         set { defaults.set(newValue, forKey: PrefKey.searchNewestFirst); objectWillChange.send() }
+    }
+    /// A pinned shelf stays open after a paste and when it loses focus, for drag and drop.
+    var shelfPinned: Bool {
+        get { defaults.bool(forKey: PrefKey.shelfPinned) }
+        set { defaults.set(newValue, forKey: PrefKey.shelfPinned); objectWillChange.send() }
     }
     var isPaused: Bool {
         get { defaults.bool(forKey: PrefKey.isPaused) }

@@ -53,6 +53,10 @@ final class ShelfViewModel: ObservableObject {
             if !query.isEmpty { reload(keepSelection: false) }
         }
     }
+    /// Pinned: the shelf stays open after a paste and when it loses focus.
+    @Published var pinned: Bool = Preferences.shared.shelfPinned {
+        didSet { prefs.shelfPinned = pinned }
+    }
 
     var requestClose: () -> Void = {}
     var requestPaste: (Clip, PasteVariant) -> Void = { _, _ in }
@@ -60,6 +64,10 @@ final class ShelfViewModel: ObservableObject {
     var requestEdit: (Clip) -> Void = { _ in }
     var requestSaveAs: ([Clip]) -> Void = { _ in }
     var requestOpenSettings: () -> Void = {}
+    /// Opens a file panel and imports the chosen files into the current set.
+    var requestImportFiles: (ClipSet) -> Void = { _ in }
+    /// Imports these files as separate clips into the given set, and reports the outcome.
+    var requestImport: ([URL], ClipSet) -> Void = { _, _ in }
     /// Called while the left-edge handle is dragged, with the mouse x in screen coordinates.
     var requestResize: (CGFloat) -> Void = { _ in }
     var requestResizeEnd: () -> Void = {}
@@ -323,6 +331,21 @@ final class ShelfViewModel: ObservableObject {
             guard let clip = selectedClip else { return true }
             openLink(of: clip)
             return true
+        case .importFiles:
+            requestImportFiles(currentSet)
+            return true
+        case .importContents:
+            guard let clip = selectedClip else { return true }
+            if clip.kind == .files {
+                requestImport(clip.filePaths.map { URL(fileURLWithPath: $0) }, currentSet)
+            } else {
+                showToast("Select a Files clip first")
+            }
+            return true
+        case .keepShelfOpen:
+            pinned.toggle()
+            showToast(pinned ? "Shelf stays open. Press Esc to close it." : "Shelf closes after a paste again")
+            return true
         }
     }
 
@@ -345,6 +368,12 @@ final class ShelfViewModel: ObservableObject {
                 showToast("No link in this clip")
             }
         }
+    }
+
+    /// Drop target: files from Finder become separate clips in the given set.
+    func dropFiles(_ urls: [URL], onto set: ClipSet) {
+        guard !urls.isEmpty else { return }
+        requestImport(urls, set)
     }
 
     /// Drag and drop target: a clip dragged onto a set tab moves there.

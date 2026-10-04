@@ -36,6 +36,8 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
     var colorHex: String?
     /// The formats the source app put on the clipboard, for display: "PNG, TIFF".
     var formats: String?
+    /// For clips imported from a file: the path of that file.
+    var sourcePath: String?
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
@@ -108,6 +110,7 @@ extension Clip {
             lines.append("Length: \(lineCount == 1 ? "1 line" : "\(lineCount) lines"), \(charCount == 1 ? "1 character" : "\(charCount) characters")")
         }
         lines.append("Stored: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))")
+        if let sourcePath { lines.append("File: \(sourcePath)") }
         if let sourceAppName { lines.append("Copied from: \(sourceAppName)") }
         let f = DateFormatter()
         f.dateStyle = .medium

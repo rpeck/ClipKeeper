@@ -41,12 +41,16 @@ final class ShelfController {
         viewModel.requestEdit = { [weak self] clip in self?.edit(clip) }
         viewModel.requestSaveAs = { [weak self] clips in self?.saveAs(clips) }
         viewModel.requestOpenSettings = { [weak self] in self?.hide { self?.openSettings() } }
+        viewModel.requestImportFiles = { [weak self] set in self?.chooseFilesToImport(into: set) }
+        viewModel.requestImport = { [weak self] urls, set in self?.importFiles(urls, into: set) }
         viewModel.requestResize = { [weak self] mouseX in self?.resize(toMouseX: mouseX) }
         viewModel.requestResizeEnd = { [weak self] in self?.finishResize() }
 
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: panel, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isVisible, !self.isAnimating else { return }
+                // A pinned shelf stays open when another window takes the key.
+                if self.viewModel.pinned { return }
                 // A popover or other child window of the shelf took the key. Stay open.
                 if let key = NSApp.keyWindow, key !== self.panel, key.parent === self.panel || key.className.contains("Popover") { return }
                 self.hide()
@@ -172,12 +176,19 @@ final class ShelfController {
         }
         if prefs.moveToTopOnPaste { store.moveToTop(clip) }
         let shouldType = keystroke && prefs.pasteIntoApp && Accessibility.isTrusted
-        hide {
+        let type = {
             if shouldType {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
                     Paster.shared.sendPasteKeystroke()
                 }
             }
+        }
+        if viewModel.pinned {
+            // The panel never activates ClipKeeper, so the keystroke reaches the front app.
+            viewModel.showToast(shouldType ? "Pasted" : "Copied")
+            type()
+        } else {
+            hide(completion: type)
         }
     }
 
@@ -197,6 +208,43 @@ final class ShelfController {
                 TextEditorWindow.present(text: text, isCode: clip.kind == .code, language: clip.language, title: "Edit Clip") { newText in
                     store.createTextClip(newText, sourceBundleID: clip.sourceBundleID, sourceAppName: clip.sourceAppName)
                 }
+            }
+        }
+    }
+
+    // MARK: Import files
+
+    private lazy var importer = ImportCoordinator(store: store, prefs: prefs)
+
+    /// Imports files as separate clips and shows the outcome. Works whether or
+    /// not the shelf is open, so the Finder service and the URL scheme use it too.
+    func importFiles(_ urls: [URL], into set: ClipSet) {
+        let outcome = importer.importFiles(urls, into: set)
+        if outcome.cancelled { return }
+        if !isVisible, !outcome.imported.isEmpty {
+            show()
+        }
+        if let idx = viewModel.sets.firstIndex(where: { $0.id == set.id }) { viewModel.selectSet(index: idx) }
+        viewModel.reload(keepSelection: false)
+        viewModel.select(index: 0)
+        viewModel.showToast(outcome.summary)
+        if !outcome.problems.isEmpty { NSLog("import skipped: %@", outcome.problems.joined(separator: "; ")) }
+    }
+
+    /// Opens the file panel, then imports the chosen files into `set`.
+    private func chooseFilesToImport(into set: ClipSet) {
+        hide { [weak self] in
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = true
+            panel.allowsMultipleSelection = true
+            panel.title = "Import Files into ClipKeeper"
+            panel.message = "Each file becomes its own clip. A folder imports its files one level deep."
+            panel.prompt = "Import"
+            NSApp.activate(ignoringOtherApps: true)
+            panel.begin { response in
+                guard response == .OK, !panel.urls.isEmpty else { self?.show(); return }
+                self?.importFiles(panel.urls, into: set)
             }
         }
     }

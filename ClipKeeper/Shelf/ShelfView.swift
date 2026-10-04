@@ -1,10 +1,12 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The root view of the shelf.
 struct ShelfView: View {
     @ObservedObject var model: ShelfViewModel
     @ObservedObject var prefs = Preferences.shared
     @FocusState private var searchFocused: Bool
+    @State private var fileDropTargeted = false
 
     var body: some View {
         ZStack {
@@ -104,6 +106,12 @@ struct ShelfView: View {
                 .buttonStyle(.plain)
                 .help("Capture is paused. Click to resume.")
             }
+            Button { model.perform(.keepShelfOpen) } label: {
+                Image(systemName: model.pinned ? "pin.fill" : "pin")
+                    .foregroundStyle(model.pinned ? Color.accentColor : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(model.pinned ? "Pinned: the shelf stays open after a paste and when you click elsewhere. Click to unpin (\(model.bindings.primaryCombo(for: .keepShelfOpen)?.description ?? "⌘⇧P"))." : "Keep the shelf open for drag and drop (\(model.bindings.primaryCombo(for: .keepShelfOpen)?.description ?? "⌘⇧P"))")
             Button { model.requestOpenSettings() } label: {
                 Image(systemName: "gearshape").foregroundStyle(.secondary)
             }
@@ -133,6 +141,14 @@ struct ShelfView: View {
                 guard let target else { return }
                 withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo(target, anchor: nil) }
             }
+            // Files dropped anywhere on the list become clips in the current set.
+            .onDrop(of: [UTType.fileURL.identifier], isTargeted: $fileDropTargeted) { providers in
+                guard ClipDrag.hasFiles(providers) else { return false }
+                let set = model.currentSet
+                ClipDrag.fileURLs(from: providers) { urls in model.dropFiles(urls, onto: set) }
+                return true
+            }
+            .overlay { FileDropHighlight(active: fileDropTargeted) }
         }
     }
 
@@ -222,12 +238,16 @@ struct SetTabsView: View {
                             Capsule().strokeBorder(Color.accentColor, lineWidth: 2)
                                 .opacity(dropTarget == set.id ? 1 : 0)
                         )
-                        .onDrop(of: [ClipDrag.typeIdentifier], isTargeted: Binding(
+                        .onDrop(of: [ClipDrag.typeIdentifier, UTType.fileURL.identifier], isTargeted: Binding(
                             get: { dropTarget == set.id },
                             set: { dropTarget = $0 ? set.id : (dropTarget == set.id ? nil : dropTarget) }
                         )) { providers in
-                            ClipDrag.uuid(from: providers) { uuid in
-                                if let uuid { model.dropClip(uuid: uuid, onto: set) }
+                            if ClipDrag.hasFiles(providers) {
+                                ClipDrag.fileURLs(from: providers) { urls in model.dropFiles(urls, onto: set) }
+                            } else {
+                                ClipDrag.uuid(from: providers) { uuid in
+                                    if let uuid { model.dropClip(uuid: uuid, onto: set) }
+                                }
                             }
                             return true
                         }
@@ -255,6 +275,26 @@ struct SetTabsView: View {
             .onChange(of: model.currentSetIndex) { _, idx in
                 if model.sets.indices.contains(idx) { withAnimation { proxy.scrollTo(model.sets[idx].id) } }
             }
+        }
+    }
+}
+
+/// The dashed frame and label shown while files are dragged over the list.
+struct FileDropHighlight: View {
+    let active: Bool
+
+    var body: some View {
+        if active {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                .padding(6)
+                .overlay {
+                    Text("Drop to import each file as a clip")
+                        .font(.callout.weight(.medium))
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                }
+                .allowsHitTesting(false)
         }
     }
 }

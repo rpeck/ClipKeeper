@@ -58,11 +58,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingController.show {}
         }
         DebugSnapshots.runIfRequested(shelf: shelf, settings: settings, onboarding: onboardingController, store: store)
+
+        // The Finder service "Add to ClipKeeper" and the clipkeeper:// URL scheme.
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
+        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURLEvent(_:replyEvent:)), forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         shelf.show()
         return false
+    }
+
+    /// Files dropped on the app icon, or opened with it, become clips.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        let files = urls.filter { $0.isFileURL }
+        if !files.isEmpty { shelf.importFiles(files, into: shelf.viewModel.currentSet) }
+    }
+
+    // MARK: Finder service and URL scheme
+
+    /// The "Add to ClipKeeper" service. Finder calls it with the selected
+    /// files on the pasteboard. Users assign it a keyboard shortcut in
+    /// System Settings › Keyboard › Keyboard Shortcuts › Services.
+    @objc func addToClipKeeper(_ pasteboard: NSPasteboard, userData: String, error: AutoreleasingUnsafeMutablePointer<NSString>) {
+        let urls = (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
+        guard !urls.isEmpty else {
+            error.pointee = "No files were selected."
+            return
+        }
+        shelf.importFiles(urls, into: shelf.viewModel.currentSet)
+    }
+
+    /// clipkeeper://import?path=/a/file&path=/another  — for scripts and automations.
+    @objc private func handleURLEvent(_ event: NSAppleEventDescriptor, replyEvent: NSAppleEventDescriptor) {
+        guard let string = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: string), url.scheme?.lowercased() == "clipkeeper" else { return }
+        switch url.host?.lowercased() {
+        case "import":
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            let paths = items.filter { $0.name == "path" }.compactMap(\.value).map { URL(fileURLWithPath: $0) }
+            if !paths.isEmpty { shelf.importFiles(paths, into: shelf.viewModel.currentSet) }
+        case "show", "open", nil:
+            shelf.show()
+        default:
+            break
+        }
     }
 
     // MARK: Menus
@@ -128,6 +169,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         eyedropper.target = self
         menu.addItem(eyedropper)
 
+        let importItem = NSMenuItem(title: "Import Files as Clips…", action: #selector(importFilesFromMenu), keyEquivalent: "")
+        importItem.target = self
+        menu.addItem(importItem)
+
         menu.addItem(.separator())
         let count = store.historyCount()
         let info = NSMenuItem(title: count == 1 ? "1 clip in History" : "\(count) clips in History", action: nil, keyEquivalent: "")
@@ -178,6 +223,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if let url = URL(string: "https://github.com/rpeck/ClipKeeper/blob/main/docs/USER-GUIDE.md") {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    @objc private func importFilesFromMenu() {
+        shelf.viewModel.perform(.importFiles)
     }
 
     @objc private func pickColor() {

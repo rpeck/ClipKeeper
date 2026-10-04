@@ -137,6 +137,13 @@ struct ClipContextMenu: View {
         Button("Move to Collection…\(hint(.moveToCollection))") { model.select(index: index); model.perform(.moveToCollection) }
         Button("Duplicate\(hint(.duplicate))") { model.select(index: index); model.perform(.duplicate) }
         Button("Full Preview\(hint(.togglePreview))") { model.select(index: index); model.perform(.togglePreview) }
+        if clip.kind == .files {
+            Divider()
+            Button("Import File Contents as Clips\(hint(.importContents))") { model.select(index: index); model.perform(.importContents) }
+            Button("Reveal in Finder\(hint(.openLink))") { model.select(index: index); model.perform(.openLink) }
+        }
+        Divider()
+        Button("Import Files…\(hint(.importFiles))") { model.perform(.importFiles) }
         Divider()
         Button("Delete…\(hint(.delete))") { model.select(index: index); model.perform(.delete) }
     }

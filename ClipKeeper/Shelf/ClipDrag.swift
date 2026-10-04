@@ -33,6 +33,29 @@ enum ClipDrag {
         return provider
     }
 
+    /// True when the providers carry files from Finder or another app.
+    static func hasFiles(_ providers: [NSItemProvider]) -> Bool {
+        providers.contains { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+    }
+
+    /// Reads every file URL from dropped providers, in drop order.
+    static func fileURLs(from providers: [NSItemProvider], completion: @escaping @MainActor ([URL]) -> Void) {
+        let fileProviders = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        guard !fileProviders.isEmpty else { completion([]); return }
+        var results = [URL?](repeating: nil, count: fileProviders.count)
+        let group = DispatchGroup()
+        for (i, provider) in fileProviders.enumerated() {
+            group.enter()
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
+                if let data, let url = URL(dataRepresentation: data, relativeTo: nil) { results[i] = url }
+                group.leave()
+            }
+        }
+        group.notify(queue: .main) {
+            MainActor.assumeIsolated { completion(results.compactMap { $0 }) }
+        }
+    }
+
     /// Reads the clip identifier from dropped providers.
     static func uuid(from providers: [NSItemProvider], completion: @escaping @MainActor (String?) -> Void) {
         guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(typeIdentifier) }) else {

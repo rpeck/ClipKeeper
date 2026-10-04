@@ -73,6 +73,16 @@ targets:
         NSSupportsAutomaticTermination: false
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication
+        CFBundleURLTypes:
+          - CFBundleURLName: com.raymondpeck.ClipKeeper
+            CFBundleURLSchemes: [clipkeeper]
+        NSServices:
+          - NSMenuItem:
+              default: Add to ClipKeeper
+            NSMessage: addToClipKeeper
+            NSPortName: ClipKeeper
+            NSSendFileTypes: [public.item]
+            NSRequiredContext: {}
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.raymondpeck.ClipKeeper

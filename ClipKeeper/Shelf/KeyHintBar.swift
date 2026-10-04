@@ -22,10 +22,14 @@ struct KeyHintBar: View {
             hints.append((combo(.togglePreview), "Preview"))
             hints.append((combo(.moveToCollection), "Move"))
             if let clip, clip.kind == .link { hints.append((combo(.openLink), "Open")) }
-            if let clip, clip.kind == .files { hints.append((combo(.openLink), "Reveal")) }
+            if let clip, clip.kind == .files {
+                hints.append((combo(.importContents), "Import contents"))
+                hints.append((combo(.openLink), "Reveal"))
+            }
             hints.append((combo(.delete), "Delete"))
         } else {
             hints.append((combo(.nextSet), "Next set"))
+            hints.append((combo(.importFiles), "Import files"))
             hints.append((combo(.newCollection), "New collection"))
             if case .collection = model.currentSet { hints.append((combo(.renameCollection), "Rename")) }
             hints.append((combo(.close), "Close"))

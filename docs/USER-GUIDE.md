@@ -26,6 +26,7 @@ Keys are written like this: `⌃⌘V`. Safety notes are marked with 🛡.
 - [Edit and crop](#edit-and-crop)
 - [Save a clip as a file](#save-a-clip-as-a-file)
 - [Open links and files](#open-links-and-files)
+- [Import files as clips](#import-files-as-clips)
 - [The eyedropper](#the-eyedropper)
 - [Pause capture](#pause-capture)
 - [Settings](#settings)
@@ -97,6 +98,13 @@ There are three ways to open the shelf:
 
 The shelf also closes when you click anywhere outside it, and after a
 paste.
+
+**Keep it open.** Press `⌘⇧P`, or click the pin at the top of the shelf,
+and the shelf stays open: after a paste, when you click into another app,
+and when the mouse leaves it. Use this to drag several clips out, or to
+drop files in, without the shelf closing between each one. Press `Escape`
+or the hotkey to close it. Press `⌘⇧P` again to unpin. The pin is
+remembered.
 
 The shelf opens on the screen that holds the window you are working in. The
 mouse trigger opens it on the screen that holds the pointer.
@@ -388,6 +396,59 @@ its default format. Names that collide get a number.
 - `⌘O` on other text opens the first web address found in the text. If
   there is none, a brief message says "No link in this clip".
 
+## Import files as clips
+
+A file on disk can become a clip with the file's contents. Each file becomes
+its own clip of the right kind: a `.md` file is a Markdown clip, a `.py`
+file a code clip, a `.png` an image clip, a `.rtf` a rich text clip, a
+`.pdf` or `.docx` a text clip with the document's text. The clip's title is
+the file name, and the ⓘ details show the file's path. There are four
+ways to import, and the first file always ends on top.
+
+**From the keyboard, with files selected in Finder**
+1. Select the files in Finder.
+2. Press the shortcut you gave the "Add to ClipKeeper" service. See below
+   for the one-time setup.
+3. The shelf opens with the new clips on top.
+
+**From the keyboard, from the shelf**
+1. Open the shelf and press `⌘I`.
+2. Choose one or more files, or a folder, in the file panel. Press `Return`.
+3. The clips land in the set that was open: History, or the collection.
+
+**From a Files clip**
+1. Copy files in Finder as usual. The shelf shows a Files clip.
+2. Select it and press `⌘⇧I`. Each file becomes its own clip, and the
+   Files clip stays.
+
+**With the mouse**
+- Drag files from Finder onto the shelf list. A dashed frame shows the
+  drop area.
+- Drag them onto a collection tab to import straight into that collection.
+- Rest the dragged files at the right edge of the screen to open the shelf
+  while you drag.
+- Drop files on the ClipKeeper icon in the Dock or Finder.
+
+**Set up the Finder shortcut once**
+1. Open System Settings › Keyboard › Keyboard Shortcuts… › Services.
+2. Under Files and Folders, find "Add to ClipKeeper" and turn it on.
+3. Double-click its shortcut column and press the keys you want, for
+   example `⌃⌘I`.
+
+The service also appears in Finder's right-click menu under Services.
+
+**Rules**
+- A folder imports its files one level deep, in name order. Hidden files
+  are skipped.
+- Images follow the size limit in Settings › Storage. A text file above
+  5 MB asks once before the import.
+- A file ClipKeeper cannot read, such as a binary, is skipped. The shelf
+  reports "Imported 3 files · 1 skipped".
+- Importing the same file again moves the existing clip to the top.
+
+For scripts, `open "clipkeeper://import?path=/full/path/to/file"` imports a
+file. Repeat the `path` parameter for several files.
+
 ## The eyedropper
 
 The eyedropper captures a color from anywhere on the screen.
@@ -501,6 +562,8 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `⌘E` | Edit text, or crop an image |
 | `⌘S` | Save as… |
 | `⌘O` | Open link, or reveal files |
+| `⌘I` | Import files… |
+| `⌘⇧I` | Import the contents of a Files clip as clips |
 | `⌘P` | Pin or unpin |
 | `⌘M` | Move to collection… |
 | `⌘D` | Duplicate |
@@ -511,6 +574,7 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `⌘N` | New collection |
 | `⌘R` | Rename collection |
 | `⌘,` | Settings |
+| `⌘⇧P` | Keep the shelf open (pin) |
 | `esc` | Close |
 
 ## Privacy and safety

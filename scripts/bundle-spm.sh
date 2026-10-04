@@ -59,6 +59,23 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Raymond Peck.</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key><string>com.raymondpeck.ClipKeeper</string>
+      <key>CFBundleURLSchemes</key><array><string>clipkeeper</string></array>
+    </dict>
+  </array>
+  <key>NSServices</key>
+  <array>
+    <dict>
+      <key>NSMenuItem</key><dict><key>default</key><string>Add to ClipKeeper</string></dict>
+      <key>NSMessage</key><string>addToClipKeeper</string>
+      <key>NSPortName</key><string>ClipKeeper</string>
+      <key>NSSendFileTypes</key><array><string>public.item</string></array>
+      <key>NSRequiredContext</key><dict/>
+    </dict>
+  </array>
   <key>NSSupportsAutomaticTermination</key><false/>
   <key>NSSupportsSuddenTermination</key><false/>
 </dict>
