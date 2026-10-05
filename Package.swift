@@ -17,6 +17,10 @@ let package = Package(
         // 1.16.0 added #Preview macros, which the Command Line Tools toolchain cannot expand.
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "1.15.0"),
         .package(url: "https://github.com/groue/GRDB.swift", exact: "7.11.1"),
+        // Phone transfer (Phase A): a vetted HTTP/1.1 parser and TLS, and certificate generation.
+        .package(url: "https://github.com/apple/swift-nio", exact: "2.103.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl", exact: "2.37.5"),
+        .package(url: "https://github.com/apple/swift-certificates", exact: "1.21.0"),
     ],
     targets: [
         .executableTarget(
@@ -26,6 +30,11 @@ let package = Package(
                 .product(name: "Highlightr", package: "Highlightr"),
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
                 .product(name: "GRDB", package: "GRDB.swift"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
+                .product(name: "X509", package: "swift-certificates"),
             ],
             path: "ClipKeeper",
             exclude: ["Info.plist", "Assets.xcassets"]

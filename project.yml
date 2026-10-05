@@ -21,6 +21,15 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     exactVersion: 7.11.1
+  SwiftNIO:
+    url: https://github.com/apple/swift-nio
+    exactVersion: 2.103.0
+  SwiftNIOSSL:
+    url: https://github.com/apple/swift-nio-ssl
+    exactVersion: 2.37.5
+  SwiftCertificates:
+    url: https://github.com/apple/swift-certificates
+    exactVersion: 1.21.0
 
 settings:
   base:
@@ -56,6 +65,16 @@ targets:
         product: KeyboardShortcuts
       - package: GRDB
         product: GRDB
+      - package: SwiftNIO
+        product: NIOCore
+      - package: SwiftNIO
+        product: NIOPosix
+      - package: SwiftNIO
+        product: NIOHTTP1
+      - package: SwiftNIOSSL
+        product: NIOSSL
+      - package: SwiftCertificates
+        product: X509
     info:
       path: ClipKeeper/Info.plist
       properties:
