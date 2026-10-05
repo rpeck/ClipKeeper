@@ -61,6 +61,24 @@ Each is one to three days. Order by value.
 11. **Date group headers** and a keyboard cheat sheet overlay on `?`.
 12. **Pinned clips get fixed hotkeys.** (Maccy, Pastebot.)
 
+## Phase 1b: Phones
+
+1. **Phone transfer over the local network.** The Mac speaks the LocalSend
+   protocol; the phones run the LocalSend app. Explicit sends only, TLS
+   with fingerprint pinning, PIN for unknown devices, type allowlist, and
+   a security review before it ships. Design: [SYNC-DESIGN.md](SYNC-DESIGN.md).
+   Includes whole-clip send between two ClipKeeper Macs.
+2. **Shared collections between Macs.** A collection marked shared syncs
+   between paired ClipKeeper Macs on the same network: set union plus
+   tombstones, since clips never change in place. Opt in per collection on
+   both sides. Second security review for the automatic path. About a week.
+3. **Native ClipKeeper apps for iPhone and Android.** The shelf and the
+   collections on the phone, speaking the same protocol. Two to three
+   weeks per platform plus store accounts. After the LocalSend phase
+   proves the use.
+4. **Automatic clipboard sync per device**, opt in, behind secret
+   detection. Android first; iOS limits background clipboard access.
+
 ## Phase 2: The developer's clipboard
 
 1. **CLI.** `clipkeeper list`, `clipkeeper get 3`, `clipkeeper paste 3`,
