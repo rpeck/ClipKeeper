@@ -236,7 +236,7 @@ final class ReceiveCoordinator: TransferRequestHandling {
 
     // MARK: upload
 
-    func openUpload(query: [String: String], from address: String, contentLength: Int64) -> RouteResult<StagedUpload> {
+    func openUpload(query: [String: String], from address: String, contentLength: Int64?) -> RouteResult<StagedUpload> {
         guard let sessionID = query["sessionId"], let fileID = query["fileId"], let token = query["token"] else { return .failure(.badRequest) }
         lock.lock()
         defer { lock.unlock() }
@@ -248,11 +248,14 @@ final class ReceiveCoordinator: TransferRequestHandling {
         s.files[fileID] = slot
         s.lastActivity = Self.now()
         session = s
-        guard contentLength == slot.meta.size else { return .failure(.badRequest) }
-        guard stagedBytes + contentLength <= LocalSend.Limits.stagingQuota else { return .failure(.insufficientStorage) }
+        // The size from prepare-upload rules. A Content-Length must equal it; a
+        // chunked body must end at exactly that size, checked as bytes arrive.
+        if let contentLength, contentLength != slot.meta.size { return .failure(.badRequest) }
+        let expected = slot.meta.size
+        guard stagedBytes + expected <= LocalSend.Limits.stagingQuota else { return .failure(.insufficientStorage) }
         guard let (url, handle) = Self.createStagingFile(in: stagingDir) else { return .failure(.internalServerError) }
-        stagedBytes += contentLength
-        return .success(StagedUpload(sessionID: s.id, fileID: fileID, url: url, expectedBytes: contentLength, handle: handle))
+        stagedBytes += expected
+        return .success(StagedUpload(sessionID: s.id, fileID: fileID, url: url, expectedBytes: expected, handle: handle))
     }
 
     func finishUpload(_ upload: StagedUpload, completion: @escaping (HTTPResponseStatus) -> Void) {

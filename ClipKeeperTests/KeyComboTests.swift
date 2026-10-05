@@ -11,6 +11,15 @@ import Testing
         #expect(store.action(for: KeyCombo("+", [.command])) == .newClip)
     }
 
+    @Test func theOldSendKeyMovesToTheNewDefault() throws {
+        let defaults = try #require(UserDefaults(suiteName: "SendKeyMigration-\(UUID().uuidString)"))
+        let saved: [String: [KeyCombo]] = [KeyAction.sendToDevice.rawValue: [KeyCombo("k", [.command, .shift])]]
+        defaults.set(try JSONEncoder().encode(saved), forKey: PrefKey.keyBindings)
+        let store = KeyBindingStore(defaults: defaults)
+        #expect(store.combos(for: .sendToDevice) == [KeyCombo("d", [.command, .shift])])
+        #expect(store.action(for: KeyCombo("k", [.command, .shift])) == nil)
+    }
+
     @Test func noDefaultComboIsUsedTwice() {
         var seen: [KeyCombo: KeyAction] = [:]
         for action in KeyAction.allCases {

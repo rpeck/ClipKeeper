@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import NIOHTTP1
 import Testing
 @testable import ClipKeeper
 
@@ -112,6 +113,29 @@ import Testing
         #expect(TransferHTTPHandler.splitURI("/a?b=1#frag") == nil)
         #expect(TransferHTTPHandler.splitURI("http://evil/a") == nil)
         #expect(TransferHTTPHandler.splitURI("/a b") == nil)
+    }
+
+    @Test func bodyFramingRules() {
+        func framing(_ pairs: [(String, String)], _ version: HTTPVersion = .http1_1) -> TransferHTTPHandler.BodyFraming? {
+            TransferHTTPHandler.bodyFraming(HTTPHeaders(pairs), version: version)
+        }
+        #expect(framing([]) == TransferHTTPHandler.BodyFraming.none)
+        #expect(framing([("Content-Length", "12")]) == .length(12))
+        #expect(framing([("Transfer-Encoding", "chunked")]) == .chunked)
+        #expect(framing([("Transfer-Encoding", "Chunked")]) == .chunked)
+        // Request smuggling shapes and anything ambiguous are refused.
+        #expect(framing([("Transfer-Encoding", "chunked"), ("Content-Length", "5")]) == nil)
+        #expect(framing([("Transfer-Encoding", "gzip, chunked")]) == nil)
+        #expect(framing([("Transfer-Encoding", "chunked"), ("Transfer-Encoding", "chunked")]) == nil)
+        #expect(framing([("Transfer-Encoding", "identity")]) == nil)
+        #expect(framing([("Transfer-Encoding", "chunked")], .http1_0) == nil)
+        #expect(framing([("Content-Length", "5"), ("Content-Length", "5")]) == nil)
+        #expect(framing([("Content-Length", "5,5")]) == nil)
+        #expect(framing([("Content-Length", "-1")]) == nil)
+        #expect(framing([("Content-Length", " 5 ")]) == .length(5))
+        #expect(framing([("Content-Length", "5 5")]) == nil)
+        #expect(framing([("Content-Length", "")]) == nil)
+        #expect(framing([("Content-Length", "9999999999999")]) == nil)
     }
 
     @Test func constantTimeEquality() {
@@ -556,6 +580,49 @@ import Testing
             _ = try await h.sender().send([h.text("x")], from: h.phoneInfo, pin: pin)
         }
         #expect(h.asked == 0)
+    }
+
+    /// LocalSend streams uploads with chunked encoding and no Content-Length.
+    @Test func chunkedUploadsArrive() async throws {
+        let h = try Harness()
+        defer { h.server.stop() }
+        let (_, pin) = try h.registry.addPhone(named: "Pixel")
+        let (session, upload) = try await openSession(h, pin: pin, text: "streamed from the phone")
+        defer { session.invalidateAndCancel() }
+        var chunked = upload
+        let body = try #require(upload.httpBody)
+        chunked.httpBody = nil
+        chunked.httpBodyStream = InputStream(data: body)
+        let (_, response) = try await session.data(for: chunked)
+        #expect((response as? HTTPURLResponse)?.statusCode == 200)
+        #expect(h.received == ["streamed from the phone"])
+    }
+
+    @Test func aChunkedUploadLongerThanDeclaredIsRefused() async throws {
+        let h = try Harness()
+        defer { h.server.stop() }
+        let (_, pin) = try h.registry.addPhone(named: "Pixel")
+        let (session, upload) = try await openSession(h, pin: pin, text: "short")
+        defer { session.invalidateAndCancel() }
+        var chunked = upload
+        chunked.httpBody = nil
+        chunked.httpBodyStream = InputStream(data: Data("short, and then much longer".utf8))
+        let result = try? await session.data(for: chunked)
+        #expect((result?.1 as? HTTPURLResponse)?.statusCode != 200)
+        #expect(h.received.isEmpty)
+    }
+
+    @Test func aChunkedRegisterIsRefused() async throws {
+        let h = try Harness()
+        defer { h.server.stop() }
+        let delegate = PinnedTrustDelegate(expectedFingerprint: h.identity.fingerprint)
+        let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        var request = URLRequest(url: try #require(URL(string: "https://127.0.0.1:\(h.port)/api/localsend/v2/register")))
+        request.httpMethod = "POST"
+        request.httpBodyStream = InputStream(data: try JSONEncoder().encode(h.phoneInfo))
+        let (_, response) = try await session.data(for: request)
+        #expect((response as? HTTPURLResponse)?.statusCode == 400)
     }
 
     @Test func unknownPathsAndMethodsAreRefused() async throws {

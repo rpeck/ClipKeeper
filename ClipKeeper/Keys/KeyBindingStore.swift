@@ -22,6 +22,11 @@ final class KeyBindingStore: ObservableObject {
         for action in KeyAction.allCases where loaded[action] == nil {
             loaded[action] = action.defaultCombos
         }
+        // Builds before 2026-10-05 saved Cmd-Shift-K for "send to a device";
+        // Evernote claims it globally. Move an unchanged old default to the new one.
+        if loaded[.sendToDevice] == [KeyCombo("k", [.command, .shift])] {
+            loaded[.sendToDevice] = KeyAction.sendToDevice.defaultCombos
+        }
         bindings = loaded
     }
 

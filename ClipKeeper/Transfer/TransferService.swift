@@ -19,6 +19,11 @@ final class TransferService: ObservableObject {
     @Published private(set) var log: [TransferLogEntry] = []
     @Published private(set) var impersonationWarning: String?
     @Published private(set) var fingerprint: String?
+    /// The port in use. Another program on this Mac can hold the preferred one.
+    @Published private(set) var port: Int = LocalSend.defaultPort
+    /// Set when macOS refuses to send ClipKeeper's announcements, which is
+    /// what the Local Network permission does while it is off.
+    @Published private(set) var multicastBlocked = false
 
     /// Called when clips arrive, for the menu bar icon.
     var onReceived: () -> Void = {}
@@ -39,6 +44,14 @@ final class TransferService: ObservableObject {
     /// while the screen is locked starts paused.
     private var screenLocked = TransferService.isScreenLockedNow()
     private var activeDialog: NSAlert?
+    /// The port, readable from the server threads.
+    private let portLock = NSLock()
+    private nonisolated(unsafe) var portForInfo = LocalSend.defaultPort
+
+    nonisolated private func currentPortForInfo() -> Int {
+        portLock.lock(); defer { portLock.unlock() }
+        return portForInfo
+    }
 
     init(store: ClipStore, database: Database, prefs: Preferences = .shared) {
         self.store = store
@@ -48,6 +61,9 @@ final class TransferService: ObservableObject {
         log = registry.recentLog()
         discovery.onChange = { [weak self] in
             Task { @MainActor in self?.refreshDiscovered() }
+        }
+        discovery.onSendResult = { [weak self] error in
+            Task { @MainActor in self?.multicastBlocked = error == EHOSTUNREACH || error == EPERM || error == EACCES }
         }
         discovery.onImpersonation = { [weak self] address in
             Task { @MainActor in
@@ -115,8 +131,8 @@ final class TransferService: ObservableObject {
         let coordinator = ReceiveCoordinator(
             registry: registry, budget: budget, stagingDir: staging,
             paused: screenLocked,
-            identityInfo: { [fingerprint = identity.fingerprint, alias = prefs.transferAlias, port = prefs.transferPort] in
-                Self.info(alias: alias, fingerprint: fingerprint, port: port)
+            identityInfo: { [weak self, fingerprint = identity.fingerprint, alias = prefs.transferAlias] in
+                Self.info(alias: alias, fingerprint: fingerprint, port: self?.currentPortForInfo() ?? LocalSend.defaultPort)
             },
             interfaces: { NetworkInterfaces.allowed(prefs: prefs) },
             noteDevice: { info, address in discovery.note(info: info, address: address) })
@@ -134,15 +150,16 @@ final class TransferService: ObservableObject {
 
         let server = TransferServer(handler: coordinator)
         do {
-            try server.start(identity: identity, port: prefs.transferPort, interfaces: interfaces)
+            port = try server.start(identity: identity, preferredPort: prefs.transferPort, interfaces: interfaces)
+            portLock.lock(); portForInfo = port; portLock.unlock()
         } catch {
             NSLog("transfer: listener failed: %@", String(describing: error))
-            state = .failed("Port \(prefs.transferPort) is in use. Quit the LocalSend app on this Mac, or choose another port.")
+            state = .failed("ClipKeeper found no free port from \(prefs.transferPort) to \(prefs.transferPort + 9). Phone transfer is off.")
             self.coordinator = nil
             return
         }
         self.server = server
-        discovery.start(interfaces: interfaces, info: Self.info(alias: prefs.transferAlias, fingerprint: identity.fingerprint, port: prefs.transferPort))
+        discovery.start(interfaces: interfaces, info: Self.info(alias: prefs.transferAlias, fingerprint: identity.fingerprint, port: port))
         discovery.announce()
         state = .running(addresses: interfaces.flatMap(\.addressStrings))
         startInterfaceWatch()
@@ -182,7 +199,7 @@ final class TransferService: ObservableObject {
     /// The description this Mac sends with a transfer.
     var ownInfo: LocalSend.DeviceInfo? {
         guard let fingerprint else { return nil }
-        var info = Self.info(alias: prefs.transferAlias, fingerprint: fingerprint, port: prefs.transferPort)
+        var info = Self.info(alias: prefs.transferAlias, fingerprint: fingerprint, port: port)
         info.announce = nil
         return info
     }
@@ -319,8 +336,11 @@ final class TransferService: ObservableObject {
 
     /// Targets for a send: verified devices that are on the network now,
     /// then every other device heard on the network, marked unverified.
+    /// Announces this Mac, so that devices on the network register with it.
+    /// LocalSend answers an announcement with an HTTP register request.
+    func announce() { discovery.announce() }
+
     func sendTargets() -> (verified: [(PairedDevice, DiscoveredDevice)], unverified: [DiscoveredDevice]) {
-        discovery.announce()
         refreshDiscovered()
         refreshDevices()
         var verified: [(PairedDevice, DiscoveredDevice)] = []

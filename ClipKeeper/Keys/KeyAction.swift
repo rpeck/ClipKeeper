@@ -127,7 +127,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .keepShelfOpen: return [KeyCombo("p", [.command, .shift])]
         case .share: return [KeyCombo("s", [.command, .shift])]
         case .airDrop: return [KeyCombo("s", [.command, .option])]
-        case .sendToDevice: return [KeyCombo("k", [.command, .shift])]
+        case .sendToDevice: return [KeyCombo("d", [.command, .shift])]
         case .newCollection: return [KeyCombo("n", [.command])]
         case .renameCollection: return [KeyCombo("r", [.command])]
         case .deleteCollection: return []

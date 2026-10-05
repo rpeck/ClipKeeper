@@ -14,11 +14,30 @@ extension ShelfViewModel {
             showToast("Files clips cannot go to a phone yet")
             return
         }
-        let targets = transfer.sendTargets()
-        guard !targets.verified.isEmpty || !targets.unverified.isEmpty else {
-            showToast("No device found. Open LocalSend on the phone, or turn on transfer on the other Mac, on the same network.")
+        transfer.announce()
+        let found = transfer.sendTargets()
+        if found.verified.isEmpty && found.unverified.isEmpty {
+            // Devices answer an announcement within a second or two.
+            overlay = .progress(title: "Looking for phones and Macs…") { [weak self] in self?.sendTask?.cancel() }
+            sendTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                guard let self, !Task.isCancelled else { return }
+                self.overlay = nil
+                let again = transfer.sendTargets()
+                guard !again.verified.isEmpty || !again.unverified.isEmpty else {
+                    self.showToast(transfer.multicastBlocked
+                        ? "macOS blocks the local network for ClipKeeper. See Settings › Devices."
+                        : "No device found. Open LocalSend on the phone, on the same network.")
+                    return
+                }
+                self.presentSendPicker(items, targets: again)
+            }
             return
         }
+        presentSendPicker(items, targets: found)
+    }
+
+    private func presentSendPicker(_ items: [OutgoingItem], targets: (verified: [(PairedDevice, DiscoveredDevice)], unverified: [DiscoveredDevice])) {
         var pickerItems: [PickerItem] = []
         for (paired, found) in targets.verified {
             pickerItems.append(PickerItem(id: "v:" + found.id, title: paired.name, subtitle: "Verified · \(found.address)", symbol: "checkmark.shield"))

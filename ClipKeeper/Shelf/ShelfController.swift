@@ -236,7 +236,9 @@ final class ShelfController {
             ok = Sharer.airDrop(clips, store: store)
         } else {
             let anchor = NSRect(x: hosting.bounds.maxX - 40, y: hosting.bounds.maxY - 44, width: 1, height: 1)
-            ok = Sharer.showPicker(for: clips, store: store, in: hosting, at: anchor)
+            ok = Sharer.showPicker(for: clips, store: store, in: hosting, at: anchor) { [weak self] in
+                self?.viewModel.showSendPicker(for: clips)
+            }
         }
         if !ok { viewModel.showToast("Nothing to share") }
     }

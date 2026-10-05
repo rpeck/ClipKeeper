@@ -56,7 +56,9 @@ protocol TransferRequestHandling: AnyObject {
     func checkPIN(query: [String: String], from address: String) -> RouteResult<TransferCredential>
     /// The `prepare-upload` body, after the PIN named the device. Asynchronous: it asks the user.
     func prepareUpload(body: Data, credential: TransferCredential, from address: String, completion: @escaping (TransferResponse) -> Void)
-    func openUpload(query: [String: String], from address: String, contentLength: Int64) -> RouteResult<StagedUpload>
+    /// `contentLength` is nil for a chunked body; the size declared in
+    /// `prepare-upload` is then the only size that counts.
+    func openUpload(query: [String: String], from address: String, contentLength: Int64?) -> RouteResult<StagedUpload>
     func finishUpload(_ upload: StagedUpload, completion: @escaping (HTTPResponseStatus) -> Void)
     func abortUpload(_ upload: StagedUpload)
     func cancel(query: [String: String], from address: String) -> HTTPResponseStatus
@@ -85,6 +87,25 @@ final class TransferServer {
 
     var isRunning: Bool { !channels.isEmpty }
 
+    /// The first port, from `preferred` up, that binds. Returns the port in use.
+    ///
+    /// The listeners do not set SO_REUSEADDR. So when another program, such as
+    /// the LocalSend Mac app, listens on the wildcard address of a port, the
+    /// kernel refuses ClipKeeper's bind to that port, and ClipKeeper moves to
+    /// the next one. It never takes over another program's traffic.
+    func start(identity: TransferIdentity, preferredPort: Int, interfaces: [NetworkInterface]) throws -> Int {
+        var lastError: Error = TransferServerError.noFreePort
+        for port in preferredPort..<min(preferredPort + 10, 65_536) {
+            do {
+                try start(identity: identity, port: port, interfaces: interfaces)
+                return port
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
     /// One listener per IPv4 address of each allowed interface. Nothing
     /// listens on the wildcard address, so a VPN or virtual interface never
     /// reaches the server. Each connection is still checked against the
@@ -103,7 +124,8 @@ final class TransferServer {
                 let index = if_nametoindex(iface.name)
                 guard index != 0 else { throw TransferServerError.noInterface(iface.name) }
                 let bootstrap = ServerBootstrap(group: group)
-                    .serverChannelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 1)
+                    // No SO_REUSEADDR: see start(identity:preferredPort:interfaces:).
+                    .serverChannelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 0)
                     .serverChannelOption(ChannelOptions.socket(IPPROTO_IP, IP_BOUND_IF), value: SocketOptionValue(index))
                     .serverChannelOption(ChannelOptions.backlog, value: 16)
                     .childChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
@@ -154,6 +176,7 @@ final class TransferServer {
 
 enum TransferServerError: Error {
     case noInterface(String)
+    case noFreePort
 }
 
 /// The accepted connections, so `stop()` can close them.
@@ -316,18 +339,14 @@ final class TransferHTTPHandler: ChannelInboundHandler {
         guard head.headers.count <= LocalSend.Limits.headerCount else { return respond(.status(.requestHeaderFieldsTooLarge), context: context) }
         let headerBytes = head.headers.reduce(head.uri.utf8.count) { $0 + $1.name.utf8.count + $1.value.utf8.count + 4 }
         guard headerBytes <= LocalSend.Limits.headerBlockBytes else { return respond(.status(.requestHeaderFieldsTooLarge), context: context) }
-        guard !head.headers.contains(name: "transfer-encoding"), !head.headers.contains(name: "expect"), !head.headers.contains(name: "upgrade") else {
+        guard !head.headers.contains(name: "expect"), !head.headers.contains(name: "upgrade") else {
             return respond(.status(.badRequest), context: context)
         }
-        let lengths = head.headers[canonicalForm: "content-length"]
-        guard lengths.count <= 1 else { return respond(.status(.badRequest), context: context) }
-        var contentLength: Int64 = 0
-        if let raw = lengths.first {
-            guard raw.utf8.allSatisfy({ $0 >= 0x30 && $0 <= 0x39 }), raw.utf8.count <= 12, let value = Int64(String(raw)) else {
-                return respond(.status(.badRequest), context: context)
-            }
-            contentLength = value
+        guard let framing = Self.bodyFraming(head.headers, version: head.version) else {
+            return respond(.status(.badRequest), context: context)
         }
+        var contentLength: Int64 = 0
+        if case .length(let value) = framing { contentLength = value }
         for header in head.headers where header.value.utf8.contains(where: { $0 == 0x0A || $0 == 0x0D || $0 == 0x00 }) {
             return respond(.status(.badRequest), context: context)
         }
@@ -340,6 +359,9 @@ final class TransferHTTPHandler: ChannelInboundHandler {
         if handler.isPaused { return respond(.status(.serviceUnavailable), context: context) }
 
         switch (route, head.method) {
+        case (_, _) where framing == .chunked && route != .upload:
+            // Only an upload may arrive chunked; LocalSend streams file bodies.
+            respond(.status(.badRequest), context: context)
         case (.info, .GET):
             respond(handler.deviceInfo(for: nil, from: remoteAddress), context: context)
         case (.register, .POST):
@@ -356,8 +378,13 @@ final class TransferHTTPHandler: ChannelInboundHandler {
                 startBodyDeadline(contentLength: contentLength, context: context)
             }
         case (.upload, .POST):
-            guard lengths.count == 1 else { return respond(.status(.lengthRequired), context: context) }
-            switch handler.openUpload(query: query, from: remoteAddress, contentLength: contentLength) {
+            let declared: Int64?
+            switch framing {
+            case .none: return respond(.status(.lengthRequired), context: context)
+            case .length(let value): declared = value
+            case .chunked: declared = nil
+            }
+            switch handler.openUpload(query: query, from: remoteAddress, contentLength: declared) {
             case .failure(let status):
                 respond(.status(status), context: context)
             case .success(let upload):
@@ -404,7 +431,9 @@ final class TransferHTTPHandler: ChannelInboundHandler {
         let needed = Int64(LocalSend.Limits.minimumThroughputBytesPerSecond * 5)
         throughputCheck = context.eventLoop.scheduleRepeatedTask(initialDelay: .seconds(5), delay: .seconds(5)) { [weak self] _ in
             guard let self, case .uploading(let upload) = self.state else { return }
-            if self.bytesSinceCheck < needed && upload.written < upload.expectedBytes {
+            // Until the request ends. A sender that delivers every byte but never
+            // ends a chunked body is cut off like any other slow sender.
+            if self.bytesSinceCheck < needed {
                 self.handler.abortUpload(upload)
                 self.state = .done
                 self.respond(.status(.requestTimeout), context: context)
@@ -435,6 +464,34 @@ final class TransferHTTPHandler: ChannelInboundHandler {
     }
 
     // MARK: Parsing
+
+    enum BodyFraming: Equatable {
+        /// No body headers at all.
+        case none
+        case length(Int64)
+        /// `Transfer-Encoding: chunked`, decoded by the NIOHTTP1 parser.
+        case chunked
+    }
+
+    /// How the body is framed, or nil when the headers are ambiguous. Refused:
+    /// two Content-Length values, a value that is not plain digits, any
+    /// transfer coding other than exactly "chunked", chunked on HTTP/1.0, and
+    /// Content-Length together with Transfer-Encoding, which is the classic
+    /// request-smuggling shape.
+    static func bodyFraming(_ headers: HTTPHeaders, version: HTTPVersion) -> BodyFraming? {
+        // Raw values, one per header line. Only the optional whitespace that
+        // HTTP allows around a value is trimmed; nothing is split or dropped.
+        let lengths = headers["content-length"].map { $0.trimmingCharacters(in: .whitespaces) }
+        let codings = headers["transfer-encoding"].map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+        if !codings.isEmpty {
+            guard lengths.isEmpty, version == .http1_1, codings == ["chunked"] else { return nil }
+            return .chunked
+        }
+        guard lengths.count <= 1 else { return nil }
+        guard let raw = lengths.first else { return BodyFraming.none }
+        guard !raw.isEmpty, raw.utf8.count <= 12, raw.utf8.allSatisfy({ $0 >= 0x30 && $0 <= 0x39 }), let value = Int64(raw) else { return nil }
+        return .length(value)
+    }
 
     /// Splits "path?query". Refuses fragments, authority forms, and control bytes.
     static func splitURI(_ uri: String) -> (path: String, query: String?)? {

@@ -20,6 +20,21 @@ struct DevicesSettingsView: View {
                 Text("Local network only. Phones use the LocalSend app; other Macs use ClipKeeper or LocalSend. Every transfer to this Mac needs the sender's PIN, and you accept each one. Received clips never fetch link titles.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            if transfer.multicastBlocked {
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("macOS blocks ClipKeeper from the local network, so phones and Macs cannot find this Mac.", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Open Local Network settings, and turn on ClipKeeper. Then turn the switch above off and on again.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Button("Open Local Network Settings") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                }
+            }
             if let warning = transfer.impersonationWarning {
                 Section {
                     Label(warning, systemImage: "exclamationmark.octagon.fill").foregroundStyle(.red)
@@ -101,7 +116,13 @@ struct DevicesSettingsView: View {
         case .off:
             Label("Off", systemImage: "circle").foregroundStyle(.secondary)
         case .running(let addresses):
-            Label("On, at \(addresses.joined(separator: ", ")), port \(prefs.transferPort)", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Label("On, at \(addresses.joined(separator: ", ")), port \(transfer.port)", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                if transfer.port != prefs.transferPort {
+                    Text("Another app on this Mac, such as LocalSend, uses port \(prefs.transferPort). ClipKeeper uses port \(transfer.port) instead.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
         case .stopped(let reason):
             VStack(alignment: .leading, spacing: 6) {
                 Label(reason, systemImage: "hand.raised.fill").foregroundStyle(.red)
@@ -162,7 +183,7 @@ struct DevicesSettingsView: View {
                     Label("Verified for sending", systemImage: "checkmark.shield").foregroundStyle(.green)
                     Button("Forget") { transfer.forgetVerification(device) }.buttonStyle(.link)
                 } else {
-                    Label("Not verified for sending yet. Send a clip to it with ⌘⇧K to verify it.", systemImage: "shield.slash").foregroundStyle(.secondary)
+                    Label("Not verified for sending yet. Send a clip to it from the shelf to verify it.", systemImage: "shield.slash").foregroundStyle(.secondary)
                 }
             }
             .font(.caption)

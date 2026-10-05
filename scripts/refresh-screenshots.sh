@@ -40,7 +40,7 @@ defaults write "$DOMAIN" shelfWidth -float "$WIDTH"
 
 # 1. Fill the demo store.
 echo "Filling the demo store…"
-(CLIPKEEPER_DATA_DIR="$DEMO" "$BIN" >/dev/null 2>&1 &)
+(CLIPKEEPER_DATA_DIR="$DEMO" "$BIN" -transferEnabled NO >/dev/null 2>&1 &)
 sleep 2
 swift scripts/demo-clips.swift >/dev/null
 sleep 1.5
@@ -49,15 +49,17 @@ sleep 0.5
 
 # 2. Render the views.
 echo "Rendering…"
-(CLIPKEEPER_DATA_DIR="$DEMO" CLIPKEEPER_SNAPSHOT_DIR="$SNAPS" CLIPKEEPER_SNAPSHOT_QUIT=1 "$BIN" >/dev/null 2>&1 &)
+(CLIPKEEPER_DATA_DIR="$DEMO" CLIPKEEPER_SNAPSHOT_DIR="$SNAPS" CLIPKEEPER_SNAPSHOT_QUIT=1 "$BIN" -transferEnabled NO >/dev/null 2>&1 &)
 for _ in {1..40}; do
   sleep 0.5
   pgrep -x ClipKeeper >/dev/null || break
 done
 pgrep -x ClipKeeper >/dev/null && { pkill -x ClipKeeper; sleep 0.5; }
 
-# 3. Copy and scale.
+# 3. Copy and scale. The README shows the shelf from a full 2x copy at half
+#    size, so it stays sharp on a Retina screen; the guide uses the 3/8 copies.
 mkdir -p "$OUT"
+[[ -f "$SNAPS/shelf.png" ]] && cp "$SNAPS/shelf.png" "$OUT/shelf-2x.png"
 count=0
 for f in shelf preview preview-image picker search checked confirm settings-keys settings-storage crop editor; do
   src="$SNAPS/$f.png"

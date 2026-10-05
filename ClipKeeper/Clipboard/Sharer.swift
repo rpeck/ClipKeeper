@@ -56,13 +56,38 @@ enum Sharer {
         return true
     }
 
-    /// Opens the share menu (AirDrop, Messages, Mail, Notes, …) anchored to a view.
+    /// Opens the share menu (AirDrop, Messages, Mail, Notes, …) anchored to a
+    /// view. `sendToDevice`, when given, adds "Send to a Phone or Mac…".
     @discardableResult
-    static func showPicker(for clips: [Clip], store: ClipStore, in view: NSView, at rect: NSRect) -> Bool {
+    static func showPicker(for clips: [Clip], store: ClipStore, in view: NSView, at rect: NSRect, sendToDevice: (() -> Void)? = nil) -> Bool {
         let items = items(for: clips, store: store)
         guard !items.isEmpty else { return false }
         let picker = NSSharingServicePicker(items: items)
+        let delegate = SharePickerDelegate(sendToDevice: sendToDevice)
+        picker.delegate = delegate
+        activeDelegate = delegate
         picker.show(relativeTo: rect, of: view, preferredEdge: .minX)
         return true
+    }
+
+    /// The picker holds its delegate weakly; this keeps it alive while the menu is open.
+    private static var activeDelegate: SharePickerDelegate?
+}
+
+/// Adds ClipKeeper's own send to the system share menu.
+final class SharePickerDelegate: NSObject, NSSharingServicePickerDelegate {
+    let sendToDevice: (() -> Void)?
+
+    init(sendToDevice: (() -> Void)?) {
+        self.sendToDevice = sendToDevice
+    }
+
+    func sharingServicePicker(_ sharingServicePicker: NSSharingServicePicker, sharingServicesForItems items: [Any], proposedSharingServices proposedServices: [NSSharingService]) -> [NSSharingService] {
+        guard let sendToDevice else { return proposedServices }
+        let image = NSImage(systemSymbolName: "iphone.and.arrow.forward", accessibilityDescription: nil) ?? NSImage()
+        let service = NSSharingService(title: "Send to a Phone or Mac…", image: image, alternateImage: nil) {
+            DispatchQueue.main.async { sendToDevice() }
+        }
+        return [service] + proposedServices
     }
 }

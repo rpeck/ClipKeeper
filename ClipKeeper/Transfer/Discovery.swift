@@ -30,6 +30,10 @@ final class DiscoveryService {
     /// The device table changed in a way a person can see. Called on the
     /// discovery queue, at most twice a second.
     var onChange: (() -> Void)?
+    /// An announcement could not be sent. The value is the errno, or 0 after
+    /// a send works again. macOS answers EHOSTUNREACH when its Local Network
+    /// permission blocks the app.
+    var onSendResult: ((Int32) -> Void)?
     /// Something else on the network announced this Mac's own fingerprint.
     /// Called once per new address.
     var onImpersonation: ((String) -> Void)?
@@ -46,6 +50,7 @@ final class DiscoveryService {
     private var changePending = false
     private var budgetWindowStart = Date()
     private var budgetUsed = 0
+    private var lastSendErrno: Int32 = -1
 
     /// At most this many datagrams are parsed per second, from all sources together.
     static let datagramsPerSecond = 100
@@ -115,36 +120,47 @@ final class DiscoveryService {
         guard var info = ownInfo else { return }
         info.announce = !isResponse
         guard let payload = try? JSONEncoder().encode(info) else { return }
+        var result: Int32 = 0
         for iface in interfaces {
             guard let first = iface.ipv4.first else { continue }
-            send(payload, from: iface, address: first.address)
+            let error = send(payload, from: iface, address: first.address)
+            if error != 0 { result = error }
+        }
+        if result != lastSendErrno {
+            lastSendErrno = result
+            if result != 0 { NSLog("discovery: an announcement failed: %s", strerror(result)) }
+            onSendResult?(result)
         }
     }
 
-    private func send(_ payload: Data, from iface: NetworkInterface, address: UInt32) {
+    /// Sends one datagram. Returns 0, or the errno of the step that failed.
+    private func send(_ payload: Data, from iface: NetworkInterface, address: UInt32) -> Int32 {
         let fd = socket(AF_INET, SOCK_DGRAM, 0)
-        guard fd >= 0 else { return }
+        guard fd >= 0 else { return errno }
         defer { close(fd) }
         var index = UInt32(if_nametoindex(iface.name))
-        guard index != 0, setsockopt(fd, IPPROTO_IP, IP_BOUND_IF, &index, socklen_t(MemoryLayout<UInt32>.size)) == 0 else { return }
+        // if_nametoindex does not set errno, so name the failure here.
+        guard index != 0 else { return ENXIO }
+        guard setsockopt(fd, IPPROTO_IP, IP_BOUND_IF, &index, socklen_t(MemoryLayout<UInt32>.size)) == 0 else { return errno }
         var ifaceAddr = in_addr(s_addr: address.bigEndian)
-        guard setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &ifaceAddr, socklen_t(MemoryLayout<in_addr>.size)) == 0 else { return }
+        guard setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF, &ifaceAddr, socklen_t(MemoryLayout<in_addr>.size)) == 0 else { return errno }
         var ttl: UInt8 = 1
-        guard setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, socklen_t(MemoryLayout<UInt8>.size)) == 0 else { return }
+        guard setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, socklen_t(MemoryLayout<UInt8>.size)) == 0 else { return errno }
         var loop: UInt8 = 0
-        guard setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, socklen_t(MemoryLayout<UInt8>.size)) == 0 else { return }
+        guard setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, socklen_t(MemoryLayout<UInt8>.size)) == 0 else { return errno }
         var dest = sockaddr_in()
         dest.sin_family = sa_family_t(AF_INET)
         dest.sin_port = in_port_t(UInt16(LocalSend.multicastPort).bigEndian)
         dest.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
         inet_pton(AF_INET, LocalSend.multicastGroup, &dest.sin_addr)
-        _ = payload.withUnsafeBytes { raw in
+        let sent = payload.withUnsafeBytes { raw in
             withUnsafePointer(to: &dest) { ptr in
                 ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
                     sendto(fd, raw.baseAddress, raw.count, 0, sa, socklen_t(MemoryLayout<sockaddr_in>.size))
                 }
             }
         }
+        return sent < 0 ? errno : 0
     }
 
     // MARK: Receive

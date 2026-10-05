@@ -1,10 +1,21 @@
 # ClipKeeper User Guide
 
-ClipKeeper is a clipboard manager for macOS that keeps text, code, images,
-links, colors, and files. It stores everything you copy and shows it in a
-shelf at the right edge of the screen. You choose a clip with the keyboard, or
-double-click it; it pastes into the app you were using. This guide covers
-every feature. The README has the short version.
+ClipKeeper is a clipboard manager for macOS. It stores everything that you
+copy and shows it in a shelf at the right edge of the screen. It keeps these
+types of clips:
+
+- Text
+- Links
+- Images
+- Formatted text, also called rich text
+- Files
+- Colors
+- Markdown
+- Code
+
+You choose a clip with the keyboard, or double-click it. It pastes into the
+app that you were in when you opened the shelf. This guide covers every
+feature. The README has the short version.
 
 Keys are written like this: `⌃⌘V`. Safety notes are marked with 🛡.
 
@@ -120,9 +131,13 @@ mouse trigger opens it on the screen that holds the pointer.
 From top to bottom the shelf has:
 
 - **Search field.** It has the keyboard focus when the shelf opens. Type to
-  filter. The gear button opens Settings.
-- **Clip set tabs.** History is first. Each collection has a tab. The `+`
-  button makes a new collection.
+  filter. The buttons at its right:
+  - `+` opens an empty editor, so that you can type a new clip. See
+    [Type a new clip](#type-a-new-clip).
+  - The pin keeps the shelf open. See [Open and close the shelf](#open-and-close-the-shelf).
+  - The gear opens Settings.
+- **Clip set tabs.** History is first. Each collection has a tab. The
+  button with a folder icon makes a new collection.
 - **Clip list.** Newest first. Pinned clips stay at the top. The selected clip
   has a blue border.
 - **Key hints.** The footer shows the keys that apply to the selected clip.
@@ -148,10 +163,12 @@ Each clip card shows:
 
 ## Move and search
 
-- `↓` `↑`, or `⌃N` `⌃P` (Emacs), or `⌃J` `⌃K` (vim) move the selection.
+- `↓` `↑` move the selection. So do the cursor keys that Emacs uses,
+  `⌃N` `⌃P`, and the ones that vim uses, `⌃J` `⌃K`.
 - `←` `→` or `⌃B` `⌃F` switch between History and the collections.
   `⇥` and `⇧⇥` do the same.
-- `Space` opens the [preview](#preview-a-clip).
+- `Space` opens the [preview](#preview-a-clip). While the search field
+  holds text, `Space` types a space, so press `⌘Y` instead.
 - **Type** to search. The list filters as you type.
 - When the search field holds text, `←` `→` move the caret and `⌫` deletes
   text. `⇥` `⇧⇥` still switch sets. Clear the field with the ⓧ button.
@@ -174,13 +191,13 @@ A control above the results switches the order between **Best match** and
 ## Preview a clip
 
 Press `Space`, or choose Full Preview from a card's right-click menu, to see
-the whole clip. The header shows the type, the formats on the clipboard,
+the whole clip. While you type a search, press `⌘Y` instead of `Space`. The header shows the type, the formats on the clipboard,
 the size, the source app, and the copy time. The buttons at the bottom
 paste, copy, save, or edit the clip.
 
 ![The preview](images/preview.png)
 
-- `Space` or `Escape` closes the preview.
+- `Space`, `⌘Y`, or `Escape` closes the preview.
 - `↓` `↑` move to the next or previous clip while the preview is open.
 
 ## Paste
@@ -416,8 +433,11 @@ its default format. Names that collide get a number.
 Send a clip to another device or app without leaving the shelf.
 
 - `⌘⇧S` opens the share menu for the selected clip, or for every checked
-  clip: AirDrop, Messages, Mail, Notes, Reminders, and any app that
-  accepts shares. Move with `↓` `↑` and press `Return`.
+  clip. Move with `↓` `↑` and press `Return`. The menu has these choices:
+  - Send to a Phone or Mac. See [Phones](#phones).
+  - AirDrop.
+  - Messages, Mail, Notes, Reminders, and any other app that accepts
+    shares.
 - `⌥⌘S` goes straight to AirDrop. The AirDrop window lists the nearby
   devices; click one, or press `Return` on it.
 
@@ -437,8 +457,9 @@ reaches Apple devices only. For Android phones, see [Phones](#phones).
 ## Phones
 
 Send clips between the Mac and an Android phone or an iPhone on the same
-Wi-Fi. The phone runs the free LocalSend app. Nothing goes through the
-internet, and there is no account.
+Wi-Fi. The phone runs the free LocalSend app, which uses the open LocalSend
+protocol with TLS encryption. Nothing goes through the internet, and there
+is no account.
 
 What can go where in this version:
 
@@ -459,15 +480,19 @@ Files clips do not go to a phone yet.
    - Check: open LocalSend. The Receive tab shows the phone's name.
 2. On the Mac, open Settings › Devices. Turn on "Send and receive clips
    with phones and Macs on this network".
-3. If macOS asks for permission to find devices on the local network,
-   click Allow. If the firewall asks about incoming connections, click
-   Allow.
-   - Check: the status line says "On", with the Mac's address.
+3. Let ClipKeeper use the local network:
+   1. If macOS asks for permission to find devices on the local network,
+      click Allow.
+   2. If macOS did not ask, open System Settings › Privacy & Security ›
+      Local Network. Turn on ClipKeeper.
+   3. If the firewall asks about incoming connections, click Allow.
+   - Check: the status line says "On", with the Mac's address and port.
 4. Type a name for the phone, such as "My Pixel", and click Add Device.
    ClipKeeper shows the phone's PIN, such as `k7mq x2ra`. Each phone gets
    its own PIN.
-5. On the phone, in LocalSend's settings, keep Quick Save off. Turn on the
-   PIN for receiving, so that nothing reaches the phone without it.
+5. On the phone, in LocalSend's settings, keep Quick Save off, for safety.
+   Turn on the PIN for receiving, so that nothing reaches the phone
+   without it.
 
 ### Send from the phone to the Mac
 
@@ -490,7 +515,9 @@ that phone in Settings › Devices.
 ### Send from the Mac to a phone
 
 1. Open LocalSend on the phone, so that it is on the network.
-2. In the shelf, select the clip, or check several. Press `⌘⇧K`.
+2. In the shelf, select the clip, or check several. Press `⌘⇧D`, or press
+   `⌘⇧S` and choose Send to a Phone or Mac. When ClipKeeper knows no
+   device yet, it looks for devices for a few seconds first.
 3. Choose the phone. A verified phone shows a shield; a phone that is not
    verified yet shows a question mark.
 4. The first time, ClipKeeper shows 128 characters to compare:
@@ -514,7 +541,7 @@ stops and the phone goes back to "not verified".
 ### Another Mac
 
 Two Macs that both run ClipKeeper send clips to each other the same way as
-a phone and a Mac: `⌘⇧K` to send, a PIN that the receiving Mac issued, and
+a phone and a Mac: `⌘⇧D` to send, a PIN that the receiving Mac issued, and
 the accept dialog on the receiving Mac. Text only in this version.
 Collections that stay the same on two Macs by themselves are not built
 yet. The README has the step-by-step procedure:
@@ -730,13 +757,13 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `⌥⏎` | Copy to the clipboard only |
 | `⌘⇧⏎` | Paste as… |
 | `⌘1` – `⌘9` | Paste slot 1 to 9 |
-| `␣` (space) | Full preview |
+| `Space`, `⌘Y` | Full preview |
 | `⌘+` `⌘=` | New clip: type it in |
 | `⌘E` | Edit text, or crop an image |
 | `⌘S` | Save as… |
 | `⌘⇧S` | Share… |
 | `⌥⌘S` | Send with AirDrop |
-| `⌘⇧K` | Send to a phone or another Mac… |
+| `⌘⇧D` | Send to a phone or another Mac… |
 | `⌘O` | Open link, or reveal files |
 | `⌘I` | Import files… |
 | `⌘⇧I` | Import the contents of a Files clip as clips |
@@ -750,7 +777,7 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `⌘N` | New collection |
 | `⌘R` | Rename collection |
 | `⌘,` | Settings |
-| `⌘⇧P` | Keep the shelf open (pin) |
+| `⌘⇧P` | Pin the shelf open |
 | `esc` | Close |
 
 ## Privacy and safety
@@ -840,17 +867,29 @@ was copied. Save as… always offers the plain text format.
 The shelf shows the formatting the source app put on the clipboard. Some apps
 provide only plain text.
 
-**The phone does not see the Mac, or ⌘⇧K finds no phone.**
-- Put both on the same Wi-Fi. Guest networks often block devices from
-  each other.
-- Open LocalSend on the phone. A phone in the background does not answer.
-- Check that the status in Settings › Devices says "On".
-- In System Settings › Privacy & Security › Local Network, turn on
-  ClipKeeper.
+**The phone does not see the Mac, or ⌘⇧D finds no phone.**
+Do these checks in this order. Stop when the device appears.
+1. In System Settings › Privacy & Security › Local Network, turn on
+   ClipKeeper. Then, in Settings › Devices, turn the transfer switch off
+   and on again. On an iPhone, also turn on LocalSend in Settings › Privacy
+   & Security › Local Network.
+2. Open LocalSend on the phone, and tap the refresh button next to Nearby
+   devices. A phone app in the background does not answer.
+3. Put both on the same Wi-Fi. Guest networks, and many office and hotel
+   networks, keep devices apart.
+4. Check that the phone can reach the Mac. In a browser on the phone, open
+   `https://<address>:<port>/api/localsend/v2/info`, with the address and
+   port from Settings › Devices. Continue past the certificate warning.
+   - If the page shows text that starts with `{"alias"`, the phone reaches
+     the Mac. The problem is discovery; check step 1 again.
+   - If the page does not load, the network keeps the devices apart. Use a
+     network that you control, such as your home Wi-Fi or the personal
+     hotspot of the phone.
 
-**Settings › Devices says that the port is in use.**
-The LocalSend app for the Mac uses the same port. Quit it. ClipKeeper does
-the same job for clips.
+**The phone shows two entries for this Mac.**
+The LocalSend app also runs on this Mac. Both apps can run: ClipKeeper then
+uses the next free port, and Settings › Devices shows which one. To send
+clips to ClipKeeper, choose the entry with ClipKeeper's name.
 
 **The phone says that the PIN is wrong.**
 Open Settings › Devices, click Show next to that phone, and type the PIN

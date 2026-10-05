@@ -118,7 +118,7 @@ Decided: Phase A first.
    body limits per route; a 10-second deadline for the header block and a
    minimum throughput of 8 KB/s for bodies rather than an idle timeout;
    at most 8 connections and 2 per address; exact `Content-Length` match
-   on `upload`; the connection closed after one request with any trailing
+   on `upload` (see "Phase A as built" for chunked uploads); the connection closed after one request with any trailing
    bytes discarded. Nothing from a request is reflected into a response
    header or into a log.
 4. **TLS.** Server: TLS 1.2 or later, the app's own P-256 certificate.
@@ -208,7 +208,7 @@ Decided: Phase A first.
 
 ## Sending to a phone
 
-1. `⌘⇧K` opens the picker. Verified devices first; discovered ones below,
+1. `⌘⇧D` opens the picker (`⌘⇧K` until 2026-10-05; Evernote claims it). Verified devices first; discovered ones below,
    marked unverified.
 2. An unverified device needs a one-time verification: the shelf shows
    the device's full fingerprint in groups of four, the user opens
@@ -395,6 +395,44 @@ Also as built:
 - The tests drive the real server over TLS on the loopback address: the
   pinned probe, a wrong fingerprint, the PIN flow, refusal, images
   refused, single-use tokens, a busy session, and size limits.
+
+## Fixes after the first test with a phone (2026-10-05)
+
+The first test with a Pixel found two problems, and the review of the fixes
+added one more round.
+
+- **Chunked uploads.** LocalSend 1.18 streams every upload with chunked
+  transfer encoding and no Content-Length (`reqwest::Body::wrap_stream`).
+  The server refused any Transfer-Encoding, so every upload failed. Now:
+  - Chunked framing is accepted on `upload` only, as exactly one
+    `Transfer-Encoding: chunked` header, on HTTP/1.1, with no
+    Content-Length. Every other combination is refused.
+  - The size declared in the authenticated `prepare-upload` is the only
+    size that counts. A byte past it is refused as it arrives, and the body
+    must end at exactly that size.
+  - The throughput floor applies until the request ends, so a sender that
+    sends every byte but never ends the chunked body is cut off.
+- **Local Network permission.** macOS blocked ClipKeeper's multicast
+  (`DenyMulticast` with no choice recorded), so neither side heard the
+  other. Settings › Devices now warns when a send fails, and the guides tell
+  the user where to turn the permission on. macOS can drop the packets
+  without an error, so the guides also give a reachability test.
+- **The LocalSend Mac app on the same Mac.** The listeners no longer set
+  SO_REUSEADDR, so the kernel refuses a bind on a port that another program
+  holds on the wildcard address, and ClipKeeper moves to the next port. It
+  never takes over another program's traffic. The announced port is the
+  one in use.
+- **Discovery.** LocalSend answers any multicast message with an HTTP
+  `register` request to the sender. When the send picker knows no device,
+  it announces and waits 2.5 seconds for those requests.
+
+Review round 3, same three models, limited to security: GPT-6 Astra and
+Gemini 3.8 Flash both found the throughput gap after the last byte and a
+race in an earlier loopback port probe; both are fixed as described above.
+Gemini also found that a failed `if_nametoindex` could report success; it
+now reports ENXIO. Claude Fable 5.1 approved the result. Tests cover the
+framing rules, a chunked upload, a chunked upload longer than declared, and
+a chunked `register`.
 
 ## Code review of Phase A
 
