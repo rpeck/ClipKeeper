@@ -367,7 +367,8 @@ enum CodeDetector {
         let lines = trimmed.components(separatedBy: "\n")
         let nonBlank = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let lineCount = max(1, nonBlank.count)
-        let sample = String(trimmed.prefix(20_000))
+        let sample = DetectionSample.make(trimmed)
+        let budget = DetectionSample.Budget(seconds: 0.5)
 
         // A single shell command line is decided by its first word.
         if lineCount == 1, isShellCommandLine(trimmed) {
@@ -377,6 +378,7 @@ enum CodeDetector {
         // Language scores.
         var scores: [String: Double] = [:]
         for (lang, signals) in languageSignals {
+            if budget.isExpired { return Result(isCode: false, language: nil, confidence: 0) }
             var s = 0.0
             for sig in signals { s += sig.score(sample) }
             scores[lang] = s

@@ -32,7 +32,9 @@ enum MarkdownDetector {
     }
 
     static func detect(_ text: String) -> Result {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Detection runs on a bounded sample: long tokens and lines are cut, which
+        // keeps every pattern below linear time on hostile input.
+        let trimmed = DetectionSample.make(text).trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 3 else { return Result(score: 0, hasStructure: false) }
 
         var score = 0.0
