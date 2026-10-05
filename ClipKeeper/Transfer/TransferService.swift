@@ -66,6 +66,7 @@ final class TransferService: ObservableObject {
         self.prefs = prefs
         registry = DeviceRegistry(database: database, vault: vault)
         devices = registry.all()
+        discovery.setVerifiedFingerprints(Set(devices.compactMap(\.verifiedFingerprint)))
         log = registry.recentLog()
         discovery.onChange = { [weak self] in
             Task { @MainActor in self?.refreshDiscovered() }
@@ -307,7 +308,10 @@ final class TransferService: ObservableObject {
 
     // MARK: Devices
 
-    func refreshDevices() { devices = registry.all() }
+    func refreshDevices() {
+        devices = registry.all()
+        discovery.setVerifiedFingerprints(Set(devices.compactMap(\.verifiedFingerprint)))
+    }
 
     func refreshLog() { log = registry.recentLog() }
 

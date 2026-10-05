@@ -51,6 +51,7 @@ final class DiscoveryService {
     private var budgetWindowStart = Date()
     private var budgetUsed = 0
     private var lastSendErrno: Int32 = -1
+    private var verifiedFingerprints: Set<String> = []
 
     /// At most this many datagrams are parsed per second, from all sources together.
     static let datagramsPerSecond = 100
@@ -287,9 +288,22 @@ final class DiscoveryService {
         }
     }
 
+    /// Fingerprints that the user verified. Their entries stay for 12 hours,
+    /// so a send works even when this Mac cannot announce itself to ask
+    /// again. Safe: every send pins the certificate, so a stranger who takes
+    /// over the address gets nothing.
+    func setVerifiedFingerprints(_ fingerprints: Set<String>) {
+        queue.async { [weak self] in self?.verifiedFingerprints = fingerprints }
+    }
+
     private func pruneLocked() {
-        let cutoff = Date().addingTimeInterval(-LocalSend.Limits.discoveredTTL)
-        devices = devices.filter { $0.value.lastSeen > cutoff }
+        let now = Date()
+        let cutoff = now.addingTimeInterval(-LocalSend.Limits.discoveredTTL)
+        let verifiedCutoff = now.addingTimeInterval(-LocalSend.Limits.verifiedDeviceTTL)
+        devices = devices.filter { entry in
+            let limit = verifiedFingerprints.contains(entry.value.fingerprint) ? verifiedCutoff : cutoff
+            return entry.value.lastSeen > limit
+        }
     }
 
     /// At most one reply per source every 10 seconds, and 20 per minute in total.

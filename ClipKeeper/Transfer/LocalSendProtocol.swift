@@ -33,6 +33,7 @@ enum LocalSend {
         static let fingerprintLength = 64
         static let discoveredDevices = 64
         static let discoveredTTL: TimeInterval = 60
+        static let verifiedDeviceTTL: TimeInterval = 12 * 3_600
         static let registerBodyBytes = 4_096
         static let prepareBodyBytes = 256 * 1_024
         static let prepareDepth = 32
