@@ -139,7 +139,8 @@ final class ClipStore: ObservableObject {
 
         // Duplicate in History: move to top, refresh the snapshot.
         if let existing = try? db.read({ db in
-            try Clip.filter(Clip.Columns.contentHash == c.contentHash).filter(Clip.Columns.collectionID == nil).fetchOne(db)
+            // Only local clips. A network clip never takes a local clip's place.
+            try Clip.filter(Clip.Columns.contentHash == c.contentHash).filter(Clip.Columns.collectionID == nil).filter(Clip.Columns.origin == nil).fetchOne(db)
         }) {
             var updated = existing
             updated.createdAt = now
@@ -156,7 +157,7 @@ final class ClipStore: ObservableObject {
             return updated
         }
 
-        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: titleOverride ?? c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: sourcePath)
+        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: titleOverride ?? c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: sourcePath, origin: nil)
         do {
             try blobs.save(snapshot: snapshot, for: clip.uuid)
             if let data = c.imageData { blobs.saveThumbnail(from: data, for: clip.uuid) }
@@ -169,6 +170,55 @@ final class ClipStore: ObservableObject {
         applyRetention()
         bump()
         if clip.kind == .link { fetchLinkMetadata(for: clip) }
+        return clip
+    }
+
+    // MARK: Network ingest
+
+    /// Stores text that arrived from another device. This is the only path
+    /// for network data: a snapshot with the plain-text type only, no file
+    /// importer, no link title fetch, no replacement of a local clip, and a
+    /// link only for http and https. `text` must already be sanitized.
+    @discardableResult
+    func ingestNetworkText(_ text: String, deviceName: String) -> Clip? {
+        let snapshot = PasteboardSnapshot.plainText(text)
+        guard var c = ContentClassifier.classify(snapshot) else { return nil }
+        if c.kind == .link {
+            let scheme = URL(string: c.text)?.scheme?.lowercased()
+            if scheme != "http" && scheme != "https" {
+                c.kind = .text
+                c.title = ContentClassifier.firstLine(of: text)
+                c.text = text
+                c.linkHost = nil
+                c.contentHash = ContentClassifier.hash(text)
+            }
+        }
+        if c.kind == .files || c.kind == .image { return nil }
+        let now = Date()
+        // A repeat from the network moves the earlier network copy to the top.
+        if let existing = try? db.read({ db in
+            try Clip.filter(Clip.Columns.contentHash == c.contentHash).filter(Clip.Columns.collectionID == nil).filter(Clip.Columns.origin == Clip.networkOrigin).fetchOne(db)
+        }) {
+            var updated = existing
+            updated.createdAt = now
+            updated.updatedAt = now
+            updated.position = now.timeIntervalSince1970
+            updated.sourceAppName = deviceName
+            try? db.write { db in try updated.update(db) }
+            bump()
+            return updated
+        }
+        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: nil, sourceAppName: deviceName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: nil, imageHeight: nil, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: false, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: nil, origin: Clip.networkOrigin)
+        do {
+            try blobs.save(snapshot: snapshot, for: clip.uuid)
+            try db.write { db in try clip.insert(db) }
+        } catch {
+            NSLog("network ingest failed")
+            blobs.delete(uuid: clip.uuid)
+            return nil
+        }
+        applyRetention()
+        bump()
         return clip
     }
 
@@ -195,7 +245,8 @@ final class ClipStore: ObservableObject {
     }
 
     private func fetchLinkMetadata(for clip: Clip) {
-        guard prefs.fetchLinkTitles, let url = URL(string: clip.text) else { return }
+        // A network clip never fetches: a received link must not make this Mac probe its own network.
+        guard prefs.fetchLinkTitles, !clip.isFromNetwork, let url = URL(string: clip.text) else { return }
         let uuid = clip.uuid
         let host = clip.linkHost
         linkTasks[uuid]?.cancel()
@@ -306,14 +357,25 @@ final class ClipStore: ObservableObject {
     // MARK: Retention
 
     /// Removes unpinned History clips past the count limit or the age limit.
+    /// Received clips count in their own domain, so a flood from the network
+    /// cannot push the user's own clips out of History.
     func applyRetention() {
         var victims: [Clip] = []
         if prefs.historyLimitEnabled {
             let limit = prefs.historyLimit
             let extra = (try? db.read { db in
-                try Clip.fetchAll(db, sql: "SELECT * FROM clip WHERE collectionID IS NULL AND pinned = 0 ORDER BY position DESC, id DESC LIMIT -1 OFFSET ?", arguments: [limit])
+                try Clip.fetchAll(db, sql: "SELECT * FROM clip WHERE collectionID IS NULL AND pinned = 0 AND origin IS NULL ORDER BY position DESC, id DESC LIMIT -1 OFFSET ?", arguments: [limit])
             }) ?? []
             victims.append(contentsOf: extra)
+        }
+        // The network domain: at most 500 clips and 500 MB, whatever the History limit.
+        let network = (try? db.read { db in
+            try Clip.fetchAll(db, sql: "SELECT * FROM clip WHERE collectionID IS NULL AND pinned = 0 AND origin = ? ORDER BY position DESC, id DESC", arguments: [Clip.networkOrigin])
+        }) ?? []
+        var networkBytes: Int64 = 0
+        for (i, c) in network.enumerated() {
+            networkBytes += Int64(c.byteCount)
+            if i >= LocalSend.Limits.receivedClips || networkBytes > LocalSend.Limits.receivedBytes { victims.append(c) }
         }
         if prefs.ageLimitEnabled {
             let cutoff = Date().addingTimeInterval(-Double(prefs.ageLimitDays) * 86_400)

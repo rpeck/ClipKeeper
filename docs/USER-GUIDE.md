@@ -26,6 +26,7 @@ Keys are written like this: `⌃⌘V`. Safety notes are marked with 🛡.
 - [Edit and crop](#edit-and-crop)
 - [Save a clip as a file](#save-a-clip-as-a-file)
 - [Share and AirDrop](#share-and-airdrop)
+- [Phones](#phones)
 - [Open links and files](#open-links-and-files)
 - [Import files as clips](#import-files-as-clips)
 - [The eyedropper](#the-eyedropper)
@@ -411,7 +412,111 @@ What the receiver gets:
 
 On an iPhone or iPad, AirDropped text opens in Notes and can be copied
 from there. Images land in Photos and files in the Files app. AirDrop
-reaches Apple devices only; Android phones need a different path.
+reaches Apple devices only. For Android phones, see [Phones](#phones).
+
+## Phones
+
+Send clips between the Mac and an Android phone or an iPhone on the same
+Wi-Fi. The phone runs the free LocalSend app. Nothing goes through the
+internet, and there is no account.
+
+What can go where in this version:
+
+| From | To | Text, links, code | Images |
+|---|---|---|---|
+| Mac | Phone | Yes, as a message with a Copy button | Yes, in the original format |
+| Phone | Mac | Yes | Not yet |
+
+Files clips do not go to a phone yet.
+
+### Set up once
+
+1. Install LocalSend on the phone.
+   - Android: [Google Play](https://play.google.com/store/apps/details?id=org.localsend.localsend_app),
+     or [F-Droid](https://f-droid.org/packages/org.localsend.localsend_app).
+   - iPhone: [App Store](https://apps.apple.com/us/app/localsend/id1661733229).
+   - Check: open LocalSend. The Receive tab shows the phone's name.
+2. On the Mac, open Settings › Devices. Turn on "Send and receive clips
+   with phones that run LocalSend".
+3. If macOS asks for permission to find devices on the local network,
+   click Allow. If the firewall asks about incoming connections, click
+   Allow.
+   - Check: the status line says "On", with the Mac's address.
+4. Type a name for the phone, such as "My Pixel", and click Add Phone.
+   ClipKeeper shows the phone's PIN, such as `k7mq x2ra`. Each phone gets
+   its own PIN.
+5. On the phone, in LocalSend's settings, keep Quick Save off. Turn on the
+   PIN for receiving, so that nothing reaches the phone without it.
+
+### Send from the phone to the Mac
+
+1. On the phone, copy the text. In LocalSend, open the Send tab and choose
+   Text, then paste. Or share the text to LocalSend from any app.
+2. Tap the Mac's name.
+3. Type the phone's PIN when LocalSend asks. LocalSend asks every time; it
+   does not store PINs. The space in the PIN is optional.
+4. On the Mac, a dialog asks "Accept from My Pixel?". Press `Return` to
+   accept, or `Escape` to refuse. With no answer in 60 seconds, the
+   transfer is refused.
+
+The text goes to the top of History. An orange phone icon on the card
+marks it as received.
+
+🛡 Refuse a transfer that you did not start. A dialog that you did not
+expect means that someone else knows that phone's PIN. Click New PIN for
+that phone in Settings › Devices.
+
+### Send from the Mac to a phone
+
+1. Open LocalSend on the phone, so that it is on the network.
+2. In the shelf, select the clip, or check several. Press `⌘⇧K`.
+3. Choose the phone. A verified phone shows a shield; a phone that is not
+   verified yet shows a question mark.
+4. The first time, ClipKeeper shows 128 characters to compare:
+   1. On the phone, in LocalSend, open the Mac's device details and tap
+      Verify. Choose Text.
+   2. Compare all of the characters on the two screens.
+   3. If they match, press `Return`. If they differ, press `Escape`;
+      something on the network pretends to be the phone or the Mac.
+5. If you added the phone in Settings first, pick it from the list. This
+   links the verification to that phone.
+6. If the phone has a PIN for receiving, ClipKeeper asks for it. Type the
+   PIN that LocalSend shows on the phone.
+
+The phone shows text as a message with a Copy button. Images go to the
+phone's gallery or downloads folder. `Escape` cancels a send in progress.
+
+🛡 ClipKeeper sends only to a phone that you verified. It checks the
+phone's certificate on every send. If the certificate changes, the send
+stops and the phone goes back to "not verified".
+
+### How phone transfer is protected
+
+- 🛡 It is off until you turn it on.
+- 🛡 It works only on the Wi-Fi and Ethernet connections that you choose in
+  Settings › Devices. VPN, virtual, and cellular connections are never
+  used.
+- 🛡 All transfers use TLS encryption. Plain connections are refused.
+- 🛡 A phone needs its PIN for every transfer, and you accept every
+  transfer on the Mac. A transfer without the right PIN never shows a
+  dialog.
+- 🛡 After 30 wrong PINs, ClipKeeper stops phone transfer until you press
+  Restart in Settings › Devices. Issue new PINs first.
+- 🛡 Received clips are plain text only. They never fetch a link title or
+  icon. A link with a scheme other than `http` or `https` stays text.
+- 🛡 Received clips never replace your own clips, and they have their own
+  limit: 500 clips and 500 MB. A flood of received clips cannot push your
+  own clips out of History.
+- 🛡 The transfer log in Settings › Devices records the time, the device,
+  the address, the count, and the size. It never records content or PINs.
+- 🛡 While the screen is locked, the Mac refuses transfers.
+- 🛡 The Mac's transfer key is made inside its Secure Enclave and never
+  leaves it.
+- 🛡 Click New PIN or Remove for a phone, and any transfer from that phone
+  that is still open stops at once.
+- While phone transfer is on, the Mac announces its name and fingerprint on
+  the network, so that phones can find it. On public Wi-Fi, turn it off.
+  The name is "ClipKeeper Mac" until you change it.
 
 ## Open links and files
 
@@ -560,6 +665,16 @@ menu bar icon. `Escape` closes the Settings window.
 - Usage shows the clip count and disk use. Show in Finder opens the data
   folder. Clear History deletes the unpinned clips in History.
 
+**Devices**
+- The switch for phone transfer, and its status.
+- This Mac's name on phones, and its fingerprint.
+- The networks that phone transfer uses.
+- The phones, each with its PIN (Show, New PIN, Remove) and whether it is
+  verified for sending.
+- The recent transfers.
+
+See [Phones](#phones).
+
 ## Keyboard reference
 
 These are the defaults. Each one can be changed in Settings › Keys.
@@ -587,6 +702,7 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `⌘S` | Save as… |
 | `⌘⇧S` | Share… |
 | `⌥⌘S` | Send with AirDrop |
+| `⌘⇧K` | Send to a phone (LocalSend)… |
 | `⌘O` | Open link, or reveal files |
 | `⌘I` | Import files… |
 | `⌘⇧I` | Import the contents of a Files clip as clips |
@@ -606,7 +722,9 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 ## Privacy and safety
 
 - 🛡 ClipKeeper stores clips only on your Mac. Nothing is uploaded.
-- The one network use is the title and icon fetch for a copied link.
+- Phone transfer, when you turn it on, uses the local network only. See
+  [How phone transfer is protected](#how-phone-transfer-is-protected).
+- The one internet use is the title and icon fetch for a copied link.
   - ClipKeeper downloads that page once, reads the title from it, and
     fetches the site's icon.
   - It is a normal page load, the same as a visit in a browser, but it
@@ -629,6 +747,15 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 - `blobs/snapshots` holds one file per clip with every pasteboard format.
 - `blobs/thumbnails` holds image previews.
 - `blobs/favicons` holds site icons.
+- `staging` holds a phone transfer while it arrives. ClipKeeper empties it
+  at every start.
+
+- `transfer` holds phone transfer's key handle, certificate, and sealed
+  PINs. The key itself is inside the Mac's Secure Enclave and cannot leave
+  it. The PINs are sealed with a key that only this Mac can derive, so a
+  copy of the folder is useless on another Mac. Delete the folder to start
+  phone transfer again from scratch; every phone then needs a new PIN and a
+  new verification.
 
 ClipKeeper sets the folder to mode 700 and the files to mode 600 on every
 launch: your user only, no group, no others.
@@ -678,3 +805,20 @@ was copied. Save as… always offers the plain text format.
 **A rich text clip looks different from the source.**
 The shelf shows the formatting the source app put on the clipboard. Some apps
 provide only plain text.
+
+**The phone does not see the Mac, or ⌘⇧K finds no phone.**
+- Put both on the same Wi-Fi. Guest networks often block devices from
+  each other.
+- Open LocalSend on the phone. A phone in the background does not answer.
+- Check that the status in Settings › Devices says "On".
+- In System Settings › Privacy & Security › Local Network, turn on
+  ClipKeeper.
+
+**Settings › Devices says that the port is in use.**
+The LocalSend app for the Mac uses the same port. Quit it. ClipKeeper does
+the same job for clips.
+
+**The phone says that the PIN is wrong.**
+Open Settings › Devices, click Show next to that phone, and type the PIN
+again. If ClipKeeper stopped phone transfer after too many wrong PINs, click
+New PIN for each phone, then Restart.

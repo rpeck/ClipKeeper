@@ -38,6 +38,9 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
     var formats: String?
     /// For clips imported from a file: the path of that file.
     var sourcePath: String?
+    /// "network" for a clip received from another device. It never fetches a
+    /// link title, and it never replaces a local clip in the duplicate check.
+    var origin: String?
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
@@ -54,7 +57,10 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
         static let collectionID = Column(CodingKeys.collectionID)
         static let position = Column(CodingKeys.position)
         static let byteCount = Column(CodingKeys.byteCount)
+        static let origin = Column(CodingKeys.origin)
     }
+
+    static let networkOrigin = "network"
 
     static func == (lhs: Clip, rhs: Clip) -> Bool { lhs.uuid == rhs.uuid && lhs.updatedAt == rhs.updatedAt && lhs.pinned == rhs.pinned && lhs.linkTitle == rhs.linkTitle && lhs.collectionID == rhs.collectionID }
     func hash(into hasher: inout Hasher) { hasher.combine(uuid) }
@@ -62,6 +68,9 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
 
 extension Clip {
     var isInHistory: Bool { collectionID == nil }
+
+    /// True for a clip that arrived from another device.
+    var isFromNetwork: Bool { origin == Clip.networkOrigin }
 
     /// A one-line summary shown under the preview, like "40 lines · 1545 characters".
     var metaSummary: String {
@@ -111,7 +120,11 @@ extension Clip {
         }
         lines.append("Stored: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))")
         if let sourcePath { lines.append("File: \(sourcePath)") }
-        if let sourceAppName { lines.append("Copied from: \(sourceAppName)") }
+        if isFromNetwork {
+            lines.append("Received over the local network from: \(sourceAppName ?? "another device")")
+        } else if let sourceAppName {
+            lines.append("Copied from: \(sourceAppName)")
+        }
         let f = DateFormatter()
         f.dateStyle = .medium
         f.timeStyle = .short

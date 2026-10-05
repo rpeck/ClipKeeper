@@ -89,6 +89,9 @@ targets:
         LSMinimumSystemVersion: "15.0"
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: Copyright © 2026 Raymond Peck.
+        NSLocalNetworkUsageDescription: ClipKeeper sends clips to and receives clips from your phones on the local network, when you turn on phone transfer.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         NSSupportsAutomaticTermination: false
         NSSupportsSuddenTermination: false
         NSPrincipalClass: NSApplication

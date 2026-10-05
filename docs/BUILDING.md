@@ -363,6 +363,14 @@ A dependency uses `#Preview`, which only Xcode can expand. Run the tests in
 release mode, as the build script does:
 `swift test -c release -Xswiftc -enable-testing`.
 
+**`swift build` fails with "'memory' file not found" in CNIOBoringSSL.**
+Some Command Line Tools installs have an empty C++ header folder in the
+toolchain, and the headers are only in the SDK. BoringSSL, inside
+swift-nio-ssl, is C++. The build scripts detect this and add the SDK
+headers; see `scripts/lib/swift-env.sh`. To build by hand, add the same
+flags:
+`swift build -c release -Xcxx -isystem -Xcxx "$(xcrun --show-sdk-path)/usr/include/c++/v1"`.
+
 **`scripts/audit-deps.sh` reports a version mismatch.**
 `Package.swift`, `project.yml`, and `Package.resolved` must pin the same
 version. Follow the update procedure in

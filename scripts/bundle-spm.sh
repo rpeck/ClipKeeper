@@ -16,7 +16,8 @@ if [[ ! -f "$ICONSET/icon_512x512@2x.png" ]]; then
   swift scripts/make-icon.swift "$ICONSET"
 fi
 
-swift build -c release 2>&1 | grep -E "error|Build complete" || true
+source scripts/lib/swift-env.sh
+swift build -c release "${SWIFT_BUILD_FLAGS[@]}" 2>&1 | grep -E "error|Build complete" || true
 BIN=".build/release/ClipKeeper"
 [[ -x "$BIN" ]] || { echo "build failed" >&2; exit 1; }
 
@@ -76,6 +77,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
       <key>NSRequiredContext</key><dict/>
     </dict>
   </array>
+  <key>NSLocalNetworkUsageDescription</key><string>ClipKeeper sends clips to and receives clips from your phones on the local network, when you turn on phone transfer.</string>
+  <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
   <key>NSSupportsAutomaticTermination</key><false/>
   <key>NSSupportsSuddenTermination</key><false/>
 </dict>

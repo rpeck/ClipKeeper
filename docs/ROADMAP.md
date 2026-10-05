@@ -65,9 +65,14 @@ Each is one to three days. Order by value.
 
 1. **Phone transfer over the local network.** The Mac speaks the LocalSend
    protocol; the phones run the LocalSend app. Explicit sends only, TLS
-   with fingerprint pinning, PIN for unknown devices, type allowlist, and
-   a security review before it ships. Design: [SYNC-DESIGN.md](SYNC-DESIGN.md).
-   Includes whole-clip send between two ClipKeeper Macs.
+   with fingerprint pinning, a PIN per phone, the accept dialog on every
+   transfer, a type allowlist, and a security review before it ships.
+   Design: [SYNC-DESIGN.md](SYNC-DESIGN.md).
+   - Phase A, text both ways and images to the phone: built (2026-10-04).
+   - Phase B, images from the phone through a sandboxed decode helper.
+   - Phase C, whole-clip send between two ClipKeeper Macs, mutual TLS.
+   - The verification screen in icon mode, as LocalSend shows it, with the
+     same 16 icons.
 2. **Shared collections between Macs.** A collection marked shared syncs
    between paired ClipKeeper Macs on the same network: set union plus
    tombstones, since clips never change in place. Opt in per collection on

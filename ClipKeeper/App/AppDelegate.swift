@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var shelf: ShelfController!
     private var edgeTrigger: EdgeTrigger!
     private var settings: SettingsWindowController!
+    private var transfer: TransferService!
     private var onboarding: OnboardingWindowController?
     private var statusItem: NSStatusItem!
     private var retentionTimer: Timer?
@@ -29,7 +30,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         store = ClipStore(database: database, blobs: .standard(), prefs: prefs)
         shelf = ShelfController(store: store, bindings: KeyBindingStore.shared, prefs: prefs)
-        settings = SettingsWindowController(store: store, bindings: KeyBindingStore.shared, prefs: prefs)
+        transfer = TransferService(store: store, database: database, prefs: prefs)
+        transfer.onReceived = { [weak self] in self?.flashStatusItem() }
+        shelf.viewModel.transfer = transfer
+        settings = SettingsWindowController(store: store, bindings: KeyBindingStore.shared, prefs: prefs, transfer: transfer)
         shelf.openSettings = { [weak self] in self?.settings.show() }
         edgeTrigger = EdgeTrigger(shelf: shelf, prefs: prefs)
         edgeTrigger.start()
@@ -41,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         buildMainMenu()
         buildStatusItem()
+        transfer.startIfEnabled()
 
         KeyboardShortcuts.onKeyUp(for: .toggleShelf) { [weak self] in self?.shelf.toggle() }
         KeyboardShortcuts.onKeyUp(for: .eyedropper) { [weak self] in self?.pickColor() }

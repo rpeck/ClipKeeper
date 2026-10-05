@@ -26,6 +26,16 @@ struct OverlayHost: View {
                         model.overlay = nil
                         onConfirm()
                     }
+                case .verify(let title, let message, let code, let onConfirm):
+                    VerifyOverlay(model: model, title: title, message: message, code: code) {
+                        model.overlay = nil
+                        onConfirm()
+                    }
+                case .progress(let title, let onCancel):
+                    ProgressOverlay(title: title) {
+                        model.overlay = nil
+                        onCancel()
+                    }
                 }
             }
             .padding(14)
@@ -115,6 +125,68 @@ struct ConfirmOverlay: View {
                     .tint(.red)
             }
             HintRow(hints: [("⏎", confirmTitle), ("esc", "Cancel")])
+        }
+    }
+}
+
+/// The comparison screen: the combined fingerprint in groups of four, as
+/// LocalSend shows it on its Verify page in text mode.
+struct VerifyOverlay: View {
+    @ObservedObject var model: ShelfViewModel
+    let title: String
+    let message: String
+    let code: String
+    let onConfirm: () -> Void
+
+    private var rows: [String] {
+        let groups = stride(from: 0, to: code.count, by: 4).map { i -> String in
+            let start = code.index(code.startIndex, offsetBy: i)
+            let end = code.index(start, offsetBy: min(4, code.count - i))
+            return String(code[start..<end])
+        }
+        return stride(from: 0, to: groups.count, by: 4).map { groups[$0..<min($0 + 4, groups.count)].joined(separator: " ") }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.headline)
+            Text(message).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    Text(row).font(.system(size: 13, design: .monospaced))
+                }
+            }
+            .textSelection(.enabled)
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+            HStack {
+                Spacer()
+                Button("They differ") { model.overlay = nil }
+                    .keyboardShortcut(.cancelAction)
+                Button("They match") { onConfirm() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            HintRow(hints: [("⏎", "They match"), ("esc", "They differ")])
+        }
+    }
+}
+
+struct ProgressOverlay: View {
+    let title: String
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                Text(title).font(.headline)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { onCancel() }.keyboardShortcut(.cancelAction)
+            }
+            HintRow(hints: [("esc", "Cancel")])
         }
     }
 }

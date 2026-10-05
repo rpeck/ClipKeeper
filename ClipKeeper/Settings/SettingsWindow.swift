@@ -8,7 +8,7 @@ extension KeyboardShortcuts.Name {
 }
 
 enum SettingsTab: String, Hashable {
-    case general, keys, privacy, storage
+    case general, keys, privacy, storage, devices
 }
 
 /// The selected settings tab, shared so menu items can open a specific tab.
@@ -24,6 +24,7 @@ final class SettingsWindowController {
     private let store: ClipStore
     private let bindings: KeyBindingStore
     private let prefs: Preferences
+    private let transfer: TransferService?
     private let selection = SettingsSelection()
     private var escapeMonitor: Any?
 
@@ -31,10 +32,11 @@ final class SettingsWindowController {
     /// the recording instead of closing the window.
     static var isRecordingKeys = false
 
-    init(store: ClipStore, bindings: KeyBindingStore, prefs: Preferences = .shared) {
+    init(store: ClipStore, bindings: KeyBindingStore, prefs: Preferences = .shared, transfer: TransferService? = nil) {
         self.store = store
         self.bindings = bindings
         self.prefs = prefs
+        self.transfer = transfer
     }
 
     func show(tab: SettingsTab? = nil) {
@@ -42,7 +44,7 @@ final class SettingsWindowController {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 560), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             w.title = "ClipKeeper Settings"
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView(store: store, bindings: bindings, prefs: prefs, selection: selection))
+            w.contentView = NSHostingView(rootView: SettingsView(store: store, bindings: bindings, prefs: prefs, selection: selection, transfer: transfer))
             w.center()
             window = w
             escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -62,6 +64,7 @@ struct SettingsView: View {
     @ObservedObject var bindings: KeyBindingStore
     @ObservedObject var prefs: Preferences
     @ObservedObject var selection: SettingsSelection
+    var transfer: TransferService?
 
     var body: some View {
         TabView(selection: $selection.tab) {
@@ -77,6 +80,11 @@ struct SettingsView: View {
             StorageSettingsView(store: store, prefs: prefs)
                 .tabItem { Label("Storage", systemImage: "internaldrive") }
                 .tag(SettingsTab.storage)
+            if let transfer {
+                DevicesSettingsView(transfer: transfer, prefs: prefs)
+                    .tabItem { Label("Devices", systemImage: "iphone") }
+                    .tag(SettingsTab.devices)
+            }
         }
         .frame(width: 620, height: 560)
     }

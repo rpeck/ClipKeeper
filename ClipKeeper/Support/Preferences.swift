@@ -24,6 +24,10 @@ enum PrefKey {
     static let edgeAutoHide = "edgeAutoHide"
     static let searchNewestFirst = "searchNewestFirst"
     static let shelfPinned = "shelfPinned"
+    static let transferEnabled = "transferEnabled"
+    static let transferAlias = "transferAlias"
+    static let transferInterfaces = "transferInterfaces"
+    static let transferPort = "transferPort"
 }
 
 /// Typed access to preferences. Every value has a default.
@@ -55,6 +59,10 @@ final class Preferences: ObservableObject {
             PrefKey.edgeAutoHide: true,
             PrefKey.searchNewestFirst: false,
             PrefKey.shelfPinned: false,
+            PrefKey.transferEnabled: false,
+            PrefKey.transferAlias: "ClipKeeper Mac",
+            PrefKey.transferInterfaces: [String](),
+            PrefKey.transferPort: 53_317,
         ])
     }
 
@@ -140,6 +148,28 @@ final class Preferences: ObservableObject {
     var confirmDelete: Bool {
         get { defaults.bool(forKey: PrefKey.confirmDelete) }
         set { defaults.set(newValue, forKey: PrefKey.confirmDelete); objectWillChange.send() }
+    }
+
+    // MARK: Phone transfer
+
+    /// The LocalSend listener and discovery. Off by default.
+    var transferEnabled: Bool {
+        get { defaults.bool(forKey: PrefKey.transferEnabled) }
+        set { defaults.set(newValue, forKey: PrefKey.transferEnabled); objectWillChange.send() }
+    }
+    /// The name phones see. Generic by default, so it says nothing about the user.
+    var transferAlias: String {
+        get { LocalSend.cleanAlias(defaults.string(forKey: PrefKey.transferAlias) ?? "") ?? "ClipKeeper Mac" }
+        set { defaults.set(LocalSend.cleanAlias(newValue) ?? "ClipKeeper Mac", forKey: PrefKey.transferAlias); objectWillChange.send() }
+    }
+    /// BSD names of the allowed interfaces. Empty means every eligible Wi-Fi or Ethernet interface.
+    var transferInterfaces: [String] {
+        get { defaults.stringArray(forKey: PrefKey.transferInterfaces) ?? [] }
+        set { defaults.set(newValue, forKey: PrefKey.transferInterfaces); objectWillChange.send() }
+    }
+    var transferPort: Int {
+        get { LocalSend.cleanPort(defaults.integer(forKey: PrefKey.transferPort)) ?? LocalSend.defaultPort }
+        set { defaults.set(LocalSend.cleanPort(newValue) ?? LocalSend.defaultPort, forKey: PrefKey.transferPort); objectWillChange.send() }
     }
 
     /// The image size limit in bytes, or nil when unlimited.

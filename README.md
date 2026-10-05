@@ -82,6 +82,9 @@ method, code signing, and dependency safety.
   type, original first.
 - ⌘O opens a link in the browser, or reveals files in Finder.
 - ⌘⇧S shares a clip with any app or device; ⌥⌘S goes straight to AirDrop.
+- ⌘⇧K sends a clip to an Android phone or an iPhone that runs the free
+  LocalSend app. Phones send text back the same way. Turn it on in
+  Settings › Devices.
 
 **Bring files in**
 - ⌘I imports files as separate clips: a Markdown file becomes a Markdown
@@ -116,6 +119,7 @@ type, and the answers to common problems.
 | ␣ (space) | Full preview |
 | ⌘E ⌘S ⌘O | Edit or crop, save as…, open |
 | ⌘⇧S ⌥⌘S | Share…, send with AirDrop |
+| ⌘⇧K | Send to a phone (LocalSend)… |
 | ⌘I ⌘⇧I | Import files, import a Files clip's contents |
 | ⌘P ⌘M ⌘D ⌘⌫ | Pin, move to collection, duplicate, delete |
 | ⌘N ⌘R | New collection, rename collection |
@@ -129,8 +133,10 @@ Change any of them in Settings › Keys.
 ## Privacy and safety
 
 - Clips stay on your Mac, in a folder only your account can read.
-- The only network request fetches the title and icon of a copied link. Turn
-  it off in Settings › Privacy.
+- The only internet request fetches the title and icon of a copied link.
+  Turn it off in Settings › Privacy.
+- Phone transfer is off until you turn it on. It uses the local network
+  only, with TLS, a PIN per phone, and your OK on every transfer.
 - Copies from password managers are skipped. Any app can be excluded. Pause
   capture before copying something you do not want kept.
 - Delete removes the clip from the database and from disk. There is no trash.

@@ -17,12 +17,18 @@ final class ShelfViewModel: ObservableObject {
         case picker(title: String, items: [PickerItem], onChoose: (PickerItem) -> Void)
         case prompt(title: String, placeholder: String, initial: String, onCommit: (String) -> Void)
         case confirm(title: String, message: String, confirmTitle: String, onConfirm: () -> Void)
+        /// The fingerprint comparison before the first send to a device.
+        case verify(title: String, message: String, code: String, onConfirm: () -> Void)
+        /// Work in progress, such as a send. Escape cancels it.
+        case progress(title: String, onCancel: () -> Void)
 
         var id: String {
             switch self {
             case .picker(let t, _, _): return "picker-\(t)"
             case .prompt(let t, _, _, _): return "prompt-\(t)"
             case .confirm(let t, _, _, _): return "confirm-\(t)"
+            case .verify(let t, _, _, _): return "verify-\(t)"
+            case .progress(let t, _): return "progress-\(t)"
             }
         }
     }
@@ -30,6 +36,10 @@ final class ShelfViewModel: ObservableObject {
     let store: ClipStore
     let bindings: KeyBindingStore
     let prefs: Preferences
+    /// Phone transfer. Nil in tests and before launch finishes.
+    var transfer: TransferService?
+    /// The send in progress, so Escape can cancel it.
+    var sendTask: Task<Void, Never>?
 
     @Published var query: String = "" {
         didSet { if query != oldValue { reload(keepSelection: false) } }
@@ -228,6 +238,14 @@ final class ShelfViewModel: ObservableObject {
             if combo.key == "escape" || combo.key == "n" { self.overlay = nil; return true }
             if combo.isEnter || combo.key == "y" || combo.key == "delete" { self.overlay = nil; onConfirm(); return true }
             return true
+        case .verify(_, _, _, let onConfirm):
+            // Only Return confirms. No single letter does, so a stray key cannot verify a device.
+            if combo.key == "escape" { self.overlay = nil; return true }
+            if combo.isEnter, combo.modifiers.isEmpty { self.overlay = nil; onConfirm(); return true }
+            return true
+        case .progress(_, let onCancel):
+            if combo.key == "escape" { self.overlay = nil; onCancel(); return true }
+            return true
         }
     }
 
@@ -351,6 +369,10 @@ final class ShelfViewModel: ObservableObject {
         case .share, .airDrop:
             let targets = actionTargets
             if targets.isEmpty { showToast("Select a clip first") } else { requestShare(targets, action == .airDrop) }
+            return true
+        case .sendToDevice:
+            let targets = actionTargets
+            if targets.isEmpty { showToast("Select a clip first") } else { showSendPicker(for: targets) }
             return true
         }
     }

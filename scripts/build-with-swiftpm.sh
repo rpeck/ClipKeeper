@@ -16,6 +16,7 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Library/Developer/CommandLineTools}"
 export TOOLCHAIN_DIR="${TOOLCHAIN_DIR:-$DEVELOPER_DIR}"
 
 fail() { echo "error: $*" >&2; exit 1; }
+source scripts/lib/swift-env.sh
 
 # 1. Tools.
 if ! xcode-select -p >/dev/null 2>&1; then
@@ -38,14 +39,14 @@ fi
 case "$MODE" in
   build)   scripts/bundle-spm.sh ;;
   run)     scripts/bundle-spm.sh run ;;
-  test)    swift test -c release -Xswiftc -enable-testing 2>&1 | grep -E "error:|✘|Test run with" || true ;;
+  test)    swift test -c release -Xswiftc -enable-testing "${SWIFT_BUILD_FLAGS[@]}" 2>&1 | grep -E "error:|✘|Test run with" || true ;;
   lint)
     command -v swiftlint >/dev/null || fail "SwiftLint is missing. Run: brew install swiftlint"
     swiftlint lint --strict
     ;;
   check)
     echo "== Tests"
-    swift test -c release -Xswiftc -enable-testing 2>&1 | grep -E "error:|✘|Test run with"
+    swift test -c release -Xswiftc -enable-testing "${SWIFT_BUILD_FLAGS[@]}" 2>&1 | grep -E "error:|✘|Test run with"
     echo "== Lint"
     command -v swiftlint >/dev/null || fail "SwiftLint is missing. Run: brew install swiftlint"
     swiftlint lint --strict --quiet && echo "no lint findings"

@@ -1,7 +1,8 @@
 # Phone and Mac Transfer Design
 
-Status: revision 2, 2026-10-04, after a three-model security review.
-Nothing here is built yet. Revision 1 was reviewed by Claude Fable 5.1,
+Status: revision 3, 2026-10-04. Phase A is built; see "Phase A as built"
+near the end for the four places where the code differs from revision 2,
+and why. Revision 1 was reviewed by Claude Fable 5.1,
 GPT-6 Astra, and Gemini 3.8 Flash, each independently and limited to
 security. Their findings and the changes they forced are in the last
 section. Decisions still open for the owner are marked **DECISION**.
@@ -54,10 +55,11 @@ where the protocol allows:
 
 - **Phones are known senders, not trusted ones.** The LocalSend PIN is an
   arbitrary string with no length limit (checked in the app source), so
-  the Mac issues each phone its own random 24-character PIN at pairing.
-  LocalSend stores it per device and sends it with every transfer over
-  TLS the phone has verified, so it cannot be sniffed or guessed, and the
-  PIN that arrives tells the Mac which phone is talking. That gives
+  the Mac issues each phone its own random PIN at pairing. The user types
+  it in LocalSend, which sends it over TLS, so it cannot be sniffed, and
+  the budgets below stop guessing. The PIN that arrives tells the Mac
+  which phone is talking. (Revision 2 said 24 characters stored by
+  LocalSend; see "Phase A as built".) That gives
   identity and per-phone revocation. It is a pre-shared key, one step
   below a public key: a phone that leaks its PIN is a compromised phone,
   and the user revokes that PIN on the Mac.
@@ -127,12 +129,13 @@ Decided: Phase A first.
    anything else cancels the challenge. The default system evaluation is
    never the decision. Plain HTTP peers are refused, and there is no
    setting to allow them.
-5. **Keys and secrets.** The identity key is a P-256 key created in the
-   Data Protection keychain, non-synchronizable, resident in the keychain,
-   so the private key never sits in app memory. The certificate is built
-   with Apple's swift-certificates. The PIN lives in the same keychain. A
-   keychain failure stops the feature; nothing falls back to preferences
-   or files. The decode helper never has access to either.
+5. **Keys and secrets.** The identity key is a P-256 key made in the
+   Secure Enclave, so the private key never leaves the chip. The
+   certificate is built with Apple's swift-certificates. The PINs are
+   sealed under a key that only this Mac's Secure Enclave can derive. A
+   failure stops the feature; nothing falls back to a weaker store. The
+   decode helper never has access to either. (Revision 2 said the Data
+   Protection keychain; see "Phase A as built".)
 6. **Receive pipeline.** Validation, staging, then a network-only import
    path. The existing `FileImporter` is never called on network data.
 7. **Send pipeline.** A keyboard picker, verified devices first, then
@@ -339,7 +342,90 @@ The three reviewers agreed on every item marked unanimous.
 1. The bounded threat model is accepted, with SSH as the bar.
 2. Phase A, text only, ships first.
 3. SwiftNIO is the HTTP stack.
-4. Phones get per-phone long PINs and the dialog on every transfer.
+4. Phones get per-phone PINs and the dialog on every transfer. (The PIN
+   length changed in Phase A; see "Phase A as built".)
+
+## Phase A as built
+
+Phase A follows revision 2, with four changes found while building it.
+Each one was put to the code reviewers.
+
+1. **PINs are 8 characters, not 24.** Revision 2 assumed that LocalSend
+   stores a PIN per device. It does not: its sender asks the user for the
+   PIN on every 401 and keeps it only for that transfer
+   (`app/lib/provider/network/send_provider.dart`). A 24-character PIN
+   typed on a phone for every clip is not usable. The PIN is now 8
+   characters from 31 symbols without look-alikes, about 40 bits. With
+   the hard stop at 30 wrong PINs, a guess succeeds with a chance below 1
+   in 28 billion. A request without a PIN gets 401 and does not count as a
+   failure, which is how LocalSend's own server behaves and what makes
+   the phone show its PIN prompt.
+2. **Discovery replies by multicast.** The protocol allows a multicast
+   announcement with `announce` false in place of an HTTPS `register` call
+   to the announcer. The Mac uses only that, so it never opens a
+   connection to an address that a stranger chose.
+3. **Verification uses LocalSend's own Verify page.** LocalSend shows both
+   fingerprints, sorted and joined, on the device's Verify page, in text
+   mode. ClipKeeper shows the same 128 characters. Before it shows them,
+   it fetches `info` over a connection pinned to the announced
+   fingerprint, which proves that the device at that address holds that
+   certificate. One comparison verifies both directions.
+4. **The Secure Enclave replaces the keychain.** The Data Protection
+   keychain needs a keychain access group, which needs a paid Apple
+   developer certificate. The login keychain ties each item to the exact
+   build when the signing certificate has no Team ID, so every rebuild
+   asked for keychain access again, and a lookup without the entitlement
+   answered "not found", which made a new key at each launch. Now:
+   - The identity key is made in the Secure Enclave. Its private part
+     never leaves the chip, and no entitlement is needed.
+   - The PINs are sealed with ChaCha20-Poly1305 under a key from an ECDH
+     agreement of a second Secure Enclave key with its own public key,
+     through HKDF. Only this Mac's Secure Enclave can derive it.
+   - The certificate is public and is a plain file.
+   - The folder is mode 700, the files mode 600. A Mac without a Secure
+     Enclave, or an unreadable or altered file, stops the feature.
+
+Also as built:
+
+- The listener binds one socket per IPv4 address of each allowed
+  interface, never the wildcard address. IPv6 is not served.
+- Plain HTTP, TLS 1.1 and earlier, the loopback address, chunked bodies,
+  unknown routes, and wrong methods were each tried against the running
+  app and refused.
+- The tests drive the real server over TLS on the loopback address: the
+  pinned probe, a wrong fingerprint, the PIN flow, refusal, images
+  refused, single-use tokens, a busy session, and size limits.
+
+## Code review of Phase A
+
+The same three models reviewed the code, each alone, limited to security:
+Claude Fable 5.1, GPT-6 Astra, and Gemini 3.8 Flash. None found a way for
+an unauthenticated peer to reach the dialog, the clip store, or the disk.
+All three accepted the PIN length, the multicast reply, the Verify page
+format, and the network-only import path. GPT-6 Astra rejected the
+address-only interface boundary until the sockets were tied to their
+interfaces. Every finding below is fixed and, where a test can show it,
+tested.
+
+| Finding | Found by | Fix |
+|---|---|---|
+| A request body that stops after one byte holds a connection | Fable | Body deadline: 10 s plus 8 KB/s; tested on the running app |
+| A spoofed announcement un-verifies the real phone | Fable | A mismatch drops the address, not the verification; two addresses with one fingerprint are never shown as verified |
+| A cancel, lock, or expiry between the last byte and the store | Fable, Astra | The final check and the store run under one lock |
+| Return in another app accepts a dialog that just appeared | Fable | Return arms after 0.7 s |
+| `stop()` left accepted connections open | Fable | Accepted connections are tracked and closed |
+| One host fills the discovery list | Fable | At most two entries per address |
+| Invisible characters in received text | Fable | Zero-width, byte-order, and annotation marks removed; separators become newlines |
+| A verification made a PIN that nobody saw | Fable | Send-only devices have no PIN |
+| Silent keychain fallback | Fable | Replaced by the Secure Enclave |
+| Unbounded reply bodies on a send | Astra | Replies are read with a cap per route; compression refused |
+| Binding an address does not bind an interface | Astra | IP_BOUND_IF on every listener and discovery socket; one discovery socket per interface; a failed socket option closes the socket; sends only to an on-link address |
+| A netmask change did not restart the listeners | Astra | Masks are part of the interface comparison |
+| A discovery flood floods the main thread | Astra | 100 datagrams a second in total; at most two change notices a second; one warning per impersonating address |
+| A new PIN or a removal did not end an open session | Astra | Credential generations: a stale PIN ends every authority it gave; tested |
+| Shutdown did not stop queued work | Astra | The coordinator closes first, then the sockets; tested |
+| A restart while locked unpaused the server | Astra | The lock state lives in the service and is read from the window server at start |
+| Discovery read loop without a cap | Gemini | 32 datagrams per wake-up |
 
 ## After this phase
 

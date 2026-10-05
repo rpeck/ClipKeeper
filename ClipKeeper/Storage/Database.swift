@@ -115,6 +115,34 @@ final class Database {
                 t.add(column: "sourcePath", .text)
             }
         }
+        migrator.registerMigration("v4-transfer") { db in
+            // "network" for clips that arrived from another device. Nil means local.
+            try db.alter(table: "clip") { t in
+                t.add(column: "origin", .text)
+            }
+            // Phones and Macs the user paired. PINs live in the keychain, never here.
+            try db.create(table: "device") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("uuid", .text).notNull().unique()
+                t.column("name", .text).notNull()
+                t.column("kind", .text).notNull()
+                // Set only after the user compared the full fingerprint on both screens.
+                t.column("verifiedFingerprint", .text)
+                t.column("createdAt", .datetime).notNull()
+                t.column("lastUsedAt", .datetime)
+            }
+            // The transfer log. Never content, never a PIN, never a token.
+            try db.create(table: "transferLog") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("time", .datetime).notNull().indexed()
+                t.column("direction", .text).notNull()
+                t.column("device", .text).notNull()
+                t.column("address", .text).notNull()
+                t.column("count", .integer).notNull()
+                t.column("bytes", .integer).notNull()
+                t.column("outcome", .text).notNull()
+            }
+        }
         try migrator.migrate(queue)
     }
 }

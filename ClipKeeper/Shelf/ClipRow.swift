@@ -52,7 +52,13 @@ struct ClipRow: View {
 
     private var footer: some View {
         HStack(spacing: 6) {
-            if let icon = AppIcons.icon(forBundleID: clip.sourceBundleID) {
+            if clip.isFromNetwork {
+                Image(systemName: "iphone.and.arrow.forward")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .frame(width: 14)
+                    .help("Received over the local network from \(clip.sourceAppName ?? "a phone")")
+            } else if let icon = AppIcons.icon(forBundleID: clip.sourceBundleID) {
                 Image(nsImage: icon).resizable().frame(width: 14, height: 14)
             } else {
                 Image(systemName: clip.kind.symbolName).font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 14)
@@ -135,6 +141,7 @@ struct ClipContextMenu: View {
         Button("Save As…\(hint(.saveAs))") { model.select(index: index); model.perform(.saveAs) }
         Button("Share…\(hint(.share))") { model.select(index: index); model.perform(.share) }
         Button("Send with AirDrop\(hint(.airDrop))") { model.select(index: index); model.perform(.airDrop) }
+        Button("Send to a Phone…\(hint(.sendToDevice))") { model.select(index: index); model.perform(.sendToDevice) }
         Button(clip.pinned ? "Unpin\(hint(.pin))" : "Pin\(hint(.pin))") { model.select(index: index); model.perform(.pin) }
         Button("Move to Collection…\(hint(.moveToCollection))") { model.select(index: index); model.perform(.moveToCollection) }
         Button("Duplicate\(hint(.duplicate))") { model.select(index: index); model.perform(.duplicate) }
