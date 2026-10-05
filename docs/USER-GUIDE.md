@@ -446,6 +446,7 @@ What can go where in this version:
 |---|---|---|---|
 | Mac | Phone | Yes, as a message with a Copy button | Yes, in the original format |
 | Phone | Mac | Yes | Not yet |
+| Mac | Mac | Yes | Not yet |
 
 Files clips do not go to a phone yet.
 
@@ -457,12 +458,12 @@ Files clips do not go to a phone yet.
    - iPhone: [App Store](https://apps.apple.com/us/app/localsend/id1661733229).
    - Check: open LocalSend. The Receive tab shows the phone's name.
 2. On the Mac, open Settings › Devices. Turn on "Send and receive clips
-   with phones that run LocalSend".
+   with phones and Macs on this network".
 3. If macOS asks for permission to find devices on the local network,
    click Allow. If the firewall asks about incoming connections, click
    Allow.
    - Check: the status line says "On", with the Mac's address.
-4. Type a name for the phone, such as "My Pixel", and click Add Phone.
+4. Type a name for the phone, such as "My Pixel", and click Add Device.
    ClipKeeper shows the phone's PIN, such as `k7mq x2ra`. Each phone gets
    its own PIN.
 5. On the phone, in LocalSend's settings, keep Quick Save off. Turn on the
@@ -509,6 +510,18 @@ phone's gallery or downloads folder. `Escape` cancels a send in progress.
 🛡 ClipKeeper sends only to a phone that you verified. It checks the
 phone's certificate on every send. If the certificate changes, the send
 stops and the phone goes back to "not verified".
+
+### Another Mac
+
+Two Macs that both run ClipKeeper send clips to each other the same way as
+a phone and a Mac: `⌘⇧K` to send, a PIN that the receiving Mac issued, and
+the accept dialog on the receiving Mac. Text only in this version.
+Collections that stay the same on two Macs by themselves are not built
+yet. The README has the step-by-step procedure:
+[Mac to Mac](../README.md#mac-to-mac).
+
+A Mac without ClipKeeper can run the LocalSend app; ClipKeeper treats it
+like a phone.
 
 ### How phone transfer is protected
 
@@ -689,8 +702,8 @@ menu bar icon. `Escape` closes the Settings window.
 - The switch for phone transfer, and its status.
 - This Mac's name on phones, and its fingerprint.
 - The networks that phone transfer uses.
-- The phones, each with its PIN (Show, New PIN, Remove) and whether it is
-  verified for sending.
+- The phones and Macs, each with its PIN (Show, New PIN, Remove) and
+  whether it is verified for sending.
 - The recent transfers.
 
 See [Phones](#phones).
@@ -723,7 +736,7 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `⌘S` | Save as… |
 | `⌘⇧S` | Share… |
 | `⌥⌘S` | Send with AirDrop |
-| `⌘⇧K` | Send to a phone (LocalSend)… |
+| `⌘⇧K` | Send to a phone or another Mac… |
 | `⌘O` | Open link, or reveal files |
 | `⌘I` | Import files… |
 | `⌘⇧I` | Import the contents of a Files clip as clips |

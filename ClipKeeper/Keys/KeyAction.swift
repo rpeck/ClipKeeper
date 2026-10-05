@@ -51,7 +51,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .keepShelfOpen: return "Keep the shelf open (pin)"
         case .share: return "Share… (AirDrop, Messages, Mail, Notes)"
         case .airDrop: return "Send with AirDrop"
-        case .sendToDevice: return "Send to a phone (LocalSend)…"
+        case .sendToDevice: return "Send to a phone or another Mac…"
         case .newCollection: return "New collection…"
         case .renameCollection: return "Rename collection…"
         case .deleteCollection: return "Delete collection…"

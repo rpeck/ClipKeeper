@@ -15,9 +15,9 @@ struct DevicesSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Send and receive clips with phones that run LocalSend", isOn: Binding(get: { prefs.transferEnabled }, set: { transfer.setEnabled($0) }))
+                Toggle("Send and receive clips with phones and Macs on this network", isOn: Binding(get: { prefs.transferEnabled }, set: { transfer.setEnabled($0) }))
                 statusLine
-                Text("Local network only. Every clip from a phone needs its PIN, and you accept each transfer on this Mac. Received clips never fetch link titles.")
+                Text("Local network only. Phones use the LocalSend app; other Macs use ClipKeeper or LocalSend. Every transfer to this Mac needs the sender's PIN, and you accept each one. Received clips never fetch link titles.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let warning = transfer.impersonationWarning {
@@ -43,22 +43,22 @@ struct DevicesSettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 interfacesPicker
             }
-            Section("Phones") {
+            Section("Phones and Macs") {
                 if transfer.devices.isEmpty {
-                    Text("No phones yet. Add one to get its PIN.").foregroundStyle(.secondary)
+                    Text("No devices yet. Add one to get its PIN.").foregroundStyle(.secondary)
                 }
                 ForEach(transfer.devices) { device in deviceRow(device) }
                 HStack {
-                    TextField("Phone name, such as “My Pixel”", text: $newPhoneName)
+                    TextField("Device name, such as “My Pixel” or “Work Mac”", text: $newPhoneName)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { addPhone() }
-                    Button("Add Phone") { addPhone() }.disabled(newPhoneName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button("Add Device") { addPhone() }.disabled(newPhoneName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if let issued = justIssued {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("PIN for \(issued.name):").font(.callout)
                         Text(TransferPIN.display(issued.pin)).font(.system(size: 22, weight: .semibold, design: .monospaced)).textSelection(.enabled)
-                        Text("LocalSend on the phone asks for this PIN when it sends to this Mac. Type it there, with or without the space.").font(.caption).foregroundStyle(.secondary)
+                        Text("The device asks for this PIN when it sends to this Mac. Type it there, with or without the space.").font(.caption).foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
                 }
@@ -139,7 +139,7 @@ struct DevicesSettingsView: View {
         let visible = shownPIN[device.uuid] ?? false
         return VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Image(systemName: "iphone")
+                Image(systemName: "iphone.and.arrow.forward")
                 Text(device.name).font(.body.weight(.medium))
                 Spacer()
                 Button("New PIN") {
@@ -162,7 +162,7 @@ struct DevicesSettingsView: View {
                     Label("Verified for sending", systemImage: "checkmark.shield").foregroundStyle(.green)
                     Button("Forget") { transfer.forgetVerification(device) }.buttonStyle(.link)
                 } else {
-                    Label("Not verified for sending. Send a clip to it with ⌘⇧K to verify it.", systemImage: "shield.slash").foregroundStyle(.secondary)
+                    Label("Not verified for sending yet. Send a clip to it with ⌘⇧K to verify it.", systemImage: "shield.slash").foregroundStyle(.secondary)
                 }
             }
             .font(.caption)

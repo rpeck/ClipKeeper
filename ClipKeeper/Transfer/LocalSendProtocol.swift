@@ -204,11 +204,12 @@ enum LocalSend {
         SHA256.hash(data: Data(der)).map { String(format: "%02X", $0) }.joined()
     }
 
-    /// Groups of four for the comparison screen: "4BAD DE53 A7F7 …".
+    /// Groups of four, four groups a row, as on the comparison screen:
+    /// "4BAD DE53 A7F7 CDEE" on each of four rows.
     static func formatFingerprint(_ fingerprint: String) -> String {
         var out = ""
         for (i, ch) in fingerprint.enumerated() {
-            if i > 0 && i % 4 == 0 { out.append(i % 32 == 0 ? "\n" : " ") }
+            if i > 0 && i % 4 == 0 { out.append(i % 16 == 0 ? "\n" : " ") }
             out.append(ch)
         }
         return out

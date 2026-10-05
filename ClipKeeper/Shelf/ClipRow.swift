@@ -142,7 +142,7 @@ struct ClipContextMenu: View {
         Button("Save As…\(hint(.saveAs))") { model.select(index: index); model.perform(.saveAs) }
         Button("Share…\(hint(.share))") { model.select(index: index); model.perform(.share) }
         Button("Send with AirDrop\(hint(.airDrop))") { model.select(index: index); model.perform(.airDrop) }
-        Button("Send to a Phone…\(hint(.sendToDevice))") { model.select(index: index); model.perform(.sendToDevice) }
+        Button("Send to a Phone or Mac…\(hint(.sendToDevice))") { model.select(index: index); model.perform(.sendToDevice) }
         Button(clip.pinned ? "Unpin\(hint(.pin))" : "Pin\(hint(.pin))") { model.select(index: index); model.perform(.pin) }
         Button("Move to Collection…\(hint(.moveToCollection))") { model.select(index: index); model.perform(.moveToCollection) }
         Button("Duplicate\(hint(.duplicate))") { model.select(index: index); model.perform(.duplicate) }

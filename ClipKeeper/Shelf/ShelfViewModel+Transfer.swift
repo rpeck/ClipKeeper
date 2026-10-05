@@ -16,7 +16,7 @@ extension ShelfViewModel {
         }
         let targets = transfer.sendTargets()
         guard !targets.verified.isEmpty || !targets.unverified.isEmpty else {
-            showToast("No phone found. Open LocalSend on the phone, on the same Wi-Fi.")
+            showToast("No device found. Open LocalSend on the phone, or turn on transfer on the other Mac, on the same network.")
             return
         }
         var pickerItems: [PickerItem] = []
@@ -57,7 +57,7 @@ extension ShelfViewModel {
             }
             guard let self, !Task.isCancelled else { return }
             let code = TransferSender.combinedFingerprint(mine, device.fingerprint)
-            let message = "On the phone, open LocalSend. Tap this Mac in the device list, then Verify, then Text. Compare all of the characters. Send only if they match."
+            let message = "Compare all of the characters with the other device. Send only if they match.\n• A phone or a Mac with LocalSend: tap this Mac in LocalSend, then Verify, then Text.\n• A Mac with ClipKeeper: its fingerprint in Settings › Devices is the top four rows or the bottom four rows here. This Mac's fingerprint is the other four."
             self.overlay = .verify(title: "Verify \(device.alias)", message: message, code: code) { [weak self] in
                 self?.chooseRecord(for: device, then: items)
             }
@@ -75,6 +75,7 @@ extension ShelfViewModel {
         guard !candidates.isEmpty else { return finish(nil) }
         var pickerItems = candidates.map { PickerItem(id: $0.uuid, title: $0.name, subtitle: "Already added in Settings", symbol: "iphone") }
         pickerItems.append(PickerItem(id: "__new__", title: "A new device: \(device.alias)", symbol: "plus"))
+        // Devices added in Settings first, then a new entry.
         overlaySelection = 0
         overlay = .picker(title: "Which device is this?", items: pickerItems) { item in
             finish(candidates.first { $0.uuid == item.id })
