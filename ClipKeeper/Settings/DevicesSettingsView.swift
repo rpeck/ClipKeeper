@@ -25,12 +25,15 @@ struct DevicesSettingsView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Label("macOS blocks ClipKeeper from the local network, so phones and Macs cannot find this Mac.", systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
-                        Text("Open Local Network settings, and turn on ClipKeeper. Then turn the switch above off and on again.")
+                        Text("Open Local Network settings, and turn on ClipKeeper. Then click Check Again.")
                             .font(.caption).foregroundStyle(.secondary)
-                        Button("Open Local Network Settings") {
-                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork") {
-                                NSWorkspace.shared.open(url)
+                        HStack {
+                            Button("Open Local Network Settings") {
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork") {
+                                    NSWorkspace.shared.open(url)
+                                }
                             }
+                            Button("Check Again") { transfer.recheckLocalNetwork() }
                         }
                     }
                 }
@@ -76,6 +79,24 @@ struct DevicesSettingsView: View {
                         Text("The device asks for this PIN when it sends to this Mac. Type it there, with or without the space.").font(.caption).foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
+                }
+            }
+            if case .running = transfer.state {
+                Section("Heard on this network") {
+                    if transfer.discovered.isEmpty {
+                        Text("No phones or Macs yet. Open LocalSend on a phone, or turn on transfer on another Mac.").foregroundStyle(.secondary)
+                    }
+                    ForEach(transfer.discovered) { device in
+                        HStack {
+                            Image(systemName: device.isPhone ? "iphone" : "laptopcomputer").foregroundStyle(.secondary)
+                            Text(device.alias)
+                            Spacer()
+                            Text("\(device.address):\(device.port)").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Button("Look Again") { transfer.announce() }
+                    Text("This list grants no trust. A send to a device needs the fingerprint comparison the first time.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             Section("Recent transfers") {

@@ -77,7 +77,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
       <key>NSRequiredContext</key><dict/>
     </dict>
   </array>
-  <key>NSLocalNetworkUsageDescription</key><string>ClipKeeper sends clips to and receives clips from your phones on the local network, when you turn on phone transfer.</string>
+  <key>NSLocalNetworkUsageDescription</key><string>ClipKeeper sends clips to and receives clips from your phones and Macs on the local network, when you turn on transfer in Settings › Devices.</string>
+  <key>NSBonjourServices</key><array><string>_clipkeeper._tcp</string></array>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
   <key>NSSupportsAutomaticTermination</key><false/>
   <key>NSSupportsSuddenTermination</key><false/>

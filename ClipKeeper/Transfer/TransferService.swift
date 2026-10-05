@@ -24,6 +24,13 @@ final class TransferService: ObservableObject {
     /// Set when macOS refuses to send ClipKeeper's announcements, which is
     /// what the Local Network permission does while it is off.
     @Published private(set) var multicastBlocked = false
+    /// The last announcement failed. A Bonjour browse can report "allowed"
+    /// while macOS still blocks multicast, so a failed send counts on its own.
+    private var announcementsFail = false
+
+    private func updateMulticastBlocked() {
+        multicastBlocked = announcementsFail || localNetwork.state == .denied
+    }
 
     /// Called when clips arrive, for the menu bar icon.
     var onReceived: () -> Void = {}
@@ -37,6 +44,7 @@ final class TransferService: ObservableObject {
     private var coordinator: ReceiveCoordinator?
     private var server: TransferServer?
     private let discovery = DiscoveryService()
+    private let localNetwork = LocalNetworkAccess()
     private var interfaceTimer: Timer?
     private var lastInterfaces: [NetworkInterface] = []
     private var lockObservers: [NSObjectProtocol] = []
@@ -63,7 +71,17 @@ final class TransferService: ObservableObject {
             Task { @MainActor in self?.refreshDiscovered() }
         }
         discovery.onSendResult = { [weak self] error in
-            Task { @MainActor in self?.multicastBlocked = error == EHOSTUNREACH || error == EPERM || error == EACCES }
+            Task { @MainActor in
+                guard let self else { return }
+                // EHOSTUNREACH is what macOS answers while it blocks the app's multicast.
+                self.announcementsFail = error == EHOSTUNREACH || error == EPERM || error == EACCES
+                self.updateMulticastBlocked()
+            }
+        }
+        localNetwork.onChange = { [weak self] _ in
+            guard let self else { return }
+            self.updateMulticastBlocked()
+            if case .running = self.state { self.discovery.announce() }
         }
         discovery.onImpersonation = { [weak self] address in
             Task { @MainActor in
@@ -163,9 +181,13 @@ final class TransferService: ObservableObject {
         discovery.announce()
         state = .running(addresses: interfaces.flatMap(\.addressStrings))
         startInterfaceWatch()
+        localNetwork.start()
     }
 
     func stop() {
+        localNetwork.stop()
+        announcementsFail = false
+        multicastBlocked = false
         stopListeners()
         interfaceTimer?.invalidate()
         interfaceTimer = nil
@@ -336,6 +358,12 @@ final class TransferService: ObservableObject {
 
     /// Targets for a send: verified devices that are on the network now,
     /// then every other device heard on the network, marked unverified.
+    /// Checks the Local Network permission again, after the user changed it.
+    func recheckLocalNetwork() {
+        localNetwork.recheck()
+        discovery.announce()
+    }
+
     /// Announces this Mac, so that devices on the network register with it.
     /// LocalSend answers an announcement with an HTTP register request.
     func announce() { discovery.announce() }

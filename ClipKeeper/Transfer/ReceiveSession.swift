@@ -173,6 +173,9 @@ final class ReceiveCoordinator: TransferRequestHandling {
         let files: [LocalSend.FileMeta]
         do {
             let request = try LocalSend.decode(LocalSend.PrepareUploadRequest.self, from: body, maxBytes: LocalSend.Limits.prepareBodyBytes, maxDepth: LocalSend.Limits.prepareDepth)
+            // The sender had a valid PIN, so its address is worth listing. The
+            // list grants nothing: a send still needs the fingerprint comparison.
+            noteDevice(request.info, address)
             files = try LocalSend.validate(request)
         } catch LocalSend.ValidationError.badType {
             return completion(.status(.forbidden))
