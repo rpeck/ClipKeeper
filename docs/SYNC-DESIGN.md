@@ -21,8 +21,10 @@ user chose, authenticated before any content is read, every byte treated
 as hostile until a narrow validator accepts it, and the dangerous parsers
 kept out of the main process. The review was unanimous on this point, and
 the owner's requirement is met in that bounded sense, not in the literal
-sense of zero new surface. **DECISION 1: accept this bounded threat model,
-or do not build network transfer.**
+sense of zero new surface. The owner accepted this on 2026-10-04 with
+"as strong as SSH" as the bar: between Macs, mutual TLS with pinned
+identity keys meets it; for phones, the protocol allows less, as the next
+section explains.
 
 ## Decisions already made
 
@@ -31,6 +33,7 @@ or do not build network transfer.**
   open-source LocalSend app. No ClipKeeper phone app in this phase.
 - Explicit send only. Nothing moves without a keystroke or a tap.
 - Automatic acceptance does not exist in this phase, for any device.
+- Phase A ships first, text only. SwiftNIO is the HTTP stack.
 
 ## The protocol, and the fact that reshapes the design
 
@@ -49,9 +52,20 @@ Revision 1 built pairing, PIN exemptions, and auto-accept on that
 fingerprint, and all three reviewers found it. Revision 2 draws the line
 where the protocol allows:
 
-- **Phones are never authenticated.** Every transfer from a phone needs
-  the PIN and the accept dialog, every time. There is no "paired phone"
-  with privileges. The registry remembers phones only for display.
+- **Phones are known senders, not trusted ones.** The LocalSend PIN is an
+  arbitrary string with no length limit (checked in the app source), so
+  the Mac issues each phone its own random 24-character PIN at pairing.
+  LocalSend stores it per device and sends it with every transfer over
+  TLS the phone has verified, so it cannot be sniffed or guessed, and the
+  PIN that arrives tells the Mac which phone is talking. That gives
+  identity and per-phone revocation. It is a pre-shared key, one step
+  below a public key: a phone that leaks its PIN is a compromised phone,
+  and the user revokes that PIN on the Mac.
+- **Every transfer from a phone shows the accept dialog.** Return accepts,
+  because the sender is known; Escape refuses. The dialog costs one
+  keystroke when the phone is next to the laptop, which is the main case,
+  and an unexpected dialog is the only signal the user would ever get
+  that a phone's PIN leaked. No switch turns it off in this phase.
 - **Macs are authenticated.** Two ClipKeepers use a second, ClipKeeper-only
   listener with mutual TLS, where both sides present a certificate and each
   pins the other's. Everything automatic, such as shared collections, lives
@@ -70,8 +84,7 @@ where the protocol allows:
 3. **Phase C, Mac to Mac.** The mutual-TLS listener, whole-clip packs, and
    shared collections. Its own council review.
 
-**DECISION 2: ship Phase A first, or build the decode helper before
-anything ships.** The reviewers recommend A first.
+Decided: Phase A first.
 
 ## Components
 
@@ -96,9 +109,7 @@ anything ships.** The reviewers recommend A first.
    feature off: no keep-alive, no pipelining, no chunked bodies, no
    upgrades, no HTTP/2. Two reviewers of three required a vetted parser
    over a hand-written one, and the dependency audit covers it like any
-   other package. **DECISION 3: SwiftNIO, or a hand-written strict parser
-   with the rules in the findings.** The application rules apply either
-   way: methods `GET` and `POST`; the five paths matched exactly; query
+   other package. Decided: SwiftNIO. The application rules apply on top: methods `GET` and `POST`; the five paths matched exactly; query
    parsed with strict percent-decoding, duplicate keys refused; header
    block at most 16 KB and 64 headers; any `Transfer-Encoding`, duplicate
    or malformed `Content-Length`, bare LF, or obsolete folding refused;
@@ -135,11 +146,12 @@ anything ships.** The reviewers recommend A first.
 1. A request from an address that is not on the link of an allowed
    interface is dropped before parsing.
 2. `prepare-upload` checks the PIN from the query string before it reads
-   the body, in constant time. A wrong PIN → 401. Limits: 3 failures per
-   address, 10 per minute across all addresses, 30 in total → the server
-   stops, regenerates the PIN, and tells the user. The PIN is random from a
-   cryptographic generator, is never logged, and the user can regenerate it
-   at any time. Lockouts answer 429.
+   the body, in constant time against every phone's PIN. A match names the
+   sender. No match → 401. Limits: 3 failures per address, 10 per minute
+   across all addresses, 30 in total → the server stops and tells the
+   user. Each PIN is 24 characters from a cryptographic generator, is
+   never logged, and the user can revoke or reissue it per phone at any
+   time. Lockouts answer 429.
 3. The body is decoded strictly: at most 50 files; 100 MB per transfer;
    20 MB per file; 1 MB per text; `size` an integer in range, summed with
    overflow checks; `fileId` at most 128 characters from `[A-Za-z0-9_-]`;
@@ -150,9 +162,10 @@ anything ships.** The reviewers recommend A first.
    network. Everything else → 403. The "save other files" option from
    revision 1 is gone.
 5. One pending dialog at a time; a second `prepare-upload` → 409. The
-   dialog shows the sender's alias, address, item count, total size, and
-   types. **Refuse is the default button.** Accept needs a click or
-   `⌘Return`. The server pauses while the screen is locked.
+   dialog names the phone that the PIN identified, and shows the item
+   count, total size, and types. `Return` accepts and `Escape` refuses. A
+   request with no matching PIN never reaches a dialog. The server pauses
+   while the screen is locked.
 6. Acceptance creates a session id and one token per file, each 128
    random bits, bound to the session, the file id, the declared size, and
    the source address, with a five-minute idle expiry on monotonic time.
@@ -321,11 +334,12 @@ The three reviewers agreed on every item marked unanimous.
     non-synchronizable, resident key, fail closed.
 18. **Screen lock.** One reviewer. Changed: the server pauses.
 
-## Open decisions
+## Decisions taken on 2026-10-04
 
-1. Accept the bounded threat model, or do not build network transfer.
-2. Ship Phase A (text) first, or build the decode helper before anything.
-3. SwiftNIO for HTTP, or a hand-written strict parser.
+1. The bounded threat model is accepted, with SSH as the bar.
+2. Phase A, text only, ships first.
+3. SwiftNIO is the HTTP stack.
+4. Phones get per-phone long PINs and the dialog on every transfer.
 
 ## After this phase
 
