@@ -371,6 +371,18 @@ headers; see `scripts/lib/swift-env.sh`. To build by hand, add the same
 flags:
 `swift build -c release -Xcxx -isystem -Xcxx "$(xcrun --show-sdk-path)/usr/include/c++/v1"`.
 
+**A SwiftPM build runs on the Mac that built it, but stops at launch on
+another Mac.**
+The crash log says "could not load resource bundle". SwiftPM's generated
+`Bundle.module` looks for a library's resource bundle in the root folder of
+the .app, and then in the build folder of the Mac that built it. Code
+signing forbids files in the root folder, so the build script puts the
+bundles in `Contents/Resources`. The `BundleRedirect` target fixes the
+lookup: `main.swift` calls it first, and it sends a missing bundle path in
+the root folder to the same bundle in `Contents/Resources`. Keep that call
+first in `main.swift`. Xcode builds find the bundles on their own and do
+not compile it.
+
 **`scripts/audit-deps.sh` reports a version mismatch.**
 `Package.swift`, `project.yml`, and `Package.resolved` must pin the same
 version. Follow the update procedure in

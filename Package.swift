@@ -23,9 +23,17 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-certificates", exact: "1.21.0"),
     ],
     targets: [
+        // Lets libraries find their resource bundles in Contents/Resources of
+        // the app. See BundleRedirect/include/BundleRedirect.h.
+        .target(
+            name: "BundleRedirect",
+            path: "BundleRedirect",
+            publicHeadersPath: "include"
+        ),
         .executableTarget(
             name: "ClipKeeper",
             dependencies: [
+                "BundleRedirect",
                 .product(name: "MarkdownUI", package: "swift-markdown-ui"),
                 .product(name: "Highlightr", package: "Highlightr"),
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
