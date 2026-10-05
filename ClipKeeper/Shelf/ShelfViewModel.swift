@@ -72,6 +72,8 @@ final class ShelfViewModel: ObservableObject {
     var requestPaste: (Clip, PasteVariant) -> Void = { _, _ in }
     var requestCopyOnly: (Clip, PasteVariant) -> Void = { _, _ in }
     var requestEdit: (Clip) -> Void = { _ in }
+    /// Opens an empty editor. Saving makes a new text clip in the given set.
+    var requestNewClip: (ClipSet) -> Void = { _ in }
     var requestSaveAs: ([Clip]) -> Void = { _ in }
     var requestOpenSettings: () -> Void = {}
     /// Opens a file panel and imports the chosen files into the current set.
@@ -282,6 +284,9 @@ final class ShelfViewModel: ObservableObject {
             return true
         case .slot1, .slot2, .slot3, .slot4, .slot5, .slot6, .slot7, .slot8, .slot9:
             if let n = action.slotNumber, clips.indices.contains(n - 1) { requestPaste(clips[n - 1], .original) }
+            return true
+        case .newClip:
+            requestNewClip(currentSet)
             return true
         case .edit:
             guard let clip = selectedClip else { return true }

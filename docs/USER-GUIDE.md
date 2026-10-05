@@ -23,6 +23,7 @@ Keys are written like this: `⌃⌘V`. Safety notes are marked with 🛡.
 - [Collections](#collections)
 - [Pin, duplicate, delete](#pin-duplicate-delete)
 - [Work with several clips at once](#work-with-several-clips-at-once)
+- [Type a new clip](#type-a-new-clip)
 - [Edit and crop](#edit-and-crop)
 - [Save a clip as a file](#save-a-clip-as-a-file)
 - [Share and AirDrop](#share-and-airdrop)
@@ -82,6 +83,7 @@ Click the clipboard icon in the menu bar for these items:
 - **Pause Capture / Resume Capture.** Stops or restarts recording. See
   [Pause capture](#pause-capture).
 - **Pick a Color with Eyedropper….** See [The eyedropper](#the-eyedropper).
+- **New Clip….** Type a clip in. See [Type a new clip](#type-a-new-clip).
 - **Settings….** Opens the Settings window.
 - **User Guide.** Opens this document.
 - **Quit ClipKeeper.**
@@ -346,6 +348,24 @@ While any clip is checked, these actions apply to all checked clips:
 - `⌘⌫` deletes them after one confirmation.
 
 With nothing checked, the same actions apply to the selected clip.
+
+## Type a new clip
+
+Type text that you want to keep, such as an address or a reply you use
+often, without copying it from somewhere first.
+
+1. In the shelf, press `⌘+`, or click `+` at the top of the shelf. On a US
+   keyboard, `⌘=` does the same, without Shift.
+   - Or choose New Clip… from the menu bar icon.
+2. Type the text in the window that opens.
+3. Press `⌘Return`, or click Add Clip. `Escape` cancels.
+
+The clip goes to the top of the set that was open in the shelf: History,
+or a collection. ClipKeeper classifies it like a copy, so typed Markdown
+becomes a Markdown clip and typed code a code clip.
+
+The `+` at the end of the set tabs, with a folder icon, makes a new
+collection instead.
 
 ## Edit and crop
 
@@ -698,6 +718,7 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `⌘⇧⏎` | Paste as… |
 | `⌘1` – `⌘9` | Paste slot 1 to 9 |
 | `␣` (space) | Full preview |
+| `⌘+` `⌘=` | New clip: type it in |
 | `⌘E` | Edit text, or crop an image |
 | `⌘S` | Save as… |
 | `⌘⇧S` | Share… |

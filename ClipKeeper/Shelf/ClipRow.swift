@@ -136,6 +136,7 @@ struct ClipContextMenu: View {
         }
         Button("Copy to Clipboard Only\(hint(.copyOnly))") { model.select(index: index); model.perform(.copyOnly) }
         Divider()
+        Button("New Clip…\(hint(.newClip))") { model.perform(.newClip) }
         Button(clip.kind == .image ? "Crop…\(hint(.edit))" : "Edit…\(hint(.edit))") { model.select(index: index); model.perform(.edit) }
             .disabled(clip.kind == .files)
         Button("Save As…\(hint(.saveAs))") { model.select(index: index); model.perform(.saveAs) }

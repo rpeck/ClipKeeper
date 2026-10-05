@@ -106,6 +106,11 @@ struct ShelfView: View {
                 .buttonStyle(.plain)
                 .help("Capture is paused. Click to resume.")
             }
+            Button { model.perform(.newClip) } label: {
+                Image(systemName: "plus").foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("New clip: type it in (\(model.bindings.primaryCombo(for: .newClip)?.description ?? "⌘="))")
             Button { model.perform(.keepShelfOpen) } label: {
                 Image(systemName: model.pinned ? "pin.fill" : "pin")
                     .foregroundStyle(model.pinned ? Color.accentColor : Color.secondary)
@@ -261,7 +266,7 @@ struct SetTabsView: View {
                         }
                     }
                     Button { model.perform(.newCollection) } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "folder.badge.plus")
                             .font(.system(size: 11, weight: .semibold))
                             .padding(6)
                             .background(Color.primary.opacity(0.05), in: Circle())

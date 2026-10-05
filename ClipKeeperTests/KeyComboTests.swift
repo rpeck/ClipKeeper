@@ -2,6 +2,26 @@ import AppKit
 import Testing
 @testable import ClipKeeper
 
+@Suite @MainActor struct NewClipKeyTests {
+    @Test func commandPlusOpensANewClip() {
+        let defaults = UserDefaults(suiteName: "NewClipKeyTests-\(UUID().uuidString)") ?? .standard
+        let store = KeyBindingStore(defaults: defaults)
+        #expect(store.action(for: KeyCombo("=", [.command])) == .newClip)
+        #expect(store.action(for: KeyCombo("+", [.command, .shift])) == .newClip)
+        #expect(store.action(for: KeyCombo("+", [.command])) == .newClip)
+    }
+
+    @Test func noDefaultComboIsUsedTwice() {
+        var seen: [KeyCombo: KeyAction] = [:]
+        for action in KeyAction.allCases {
+            for combo in action.defaultCombos {
+                #expect(seen[combo] == nil, "\(combo) is used by \(String(describing: seen[combo])) and \(action)")
+                seen[combo] = action
+            }
+        }
+    }
+}
+
 @Suite @MainActor struct KeyComboTests {
     private func event(keyCode: UInt16, chars: String, flags: NSEvent.ModifierFlags = []) throws -> NSEvent {
         try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil, characters: chars, charactersIgnoringModifiers: chars, isARepeat: false, keyCode: keyCode))

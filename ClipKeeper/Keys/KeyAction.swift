@@ -6,7 +6,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
     case moveUp, moveDown
     case previousSet, nextSet
     case paste, pastePlain, copyOnly, pasteAs
-    case edit, saveAs, pin, moveToCollection, duplicate
+    case newClip, edit, saveAs, pin, moveToCollection, duplicate
     case delete
     case toggleSelectMode, selectAll, extendSelectionUp, extendSelectionDown
     case togglePreview
@@ -31,6 +31,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .pastePlain: return "Paste as plain text"
         case .copyOnly: return "Copy to clipboard only"
         case .pasteAs: return "Paste as…"
+        case .newClip: return "New clip: type it in…"
         case .edit: return "Edit or crop"
         case .saveAs: return "Save as…"
         case .pin: return "Pin or unpin"
@@ -71,7 +72,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .moveUp, .moveDown, .previousSet, .nextSet, .togglePreview, .close, .openSettings, .keepShelfOpen: return "Navigation"
         case .paste, .pastePlain, .copyOnly, .pasteAs: return "Paste"
         case .slot1, .slot2, .slot3, .slot4, .slot5, .slot6, .slot7, .slot8, .slot9: return "Slots"
-        case .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .openLink, .importFiles, .importContents, .share, .airDrop, .sendToDevice: return "Clip"
+        case .newClip, .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .openLink, .importFiles, .importContents, .share, .airDrop, .sendToDevice: return "Clip"
         case .toggleSelectMode, .selectAll, .extendSelectionUp, .extendSelectionDown: return "Selection"
         case .newCollection, .renameCollection, .deleteCollection: return "Collections"
         }
@@ -106,6 +107,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .pastePlain: return [KeyCombo("return", [.shift])]
         case .copyOnly: return [KeyCombo("return", [.option])]
         case .pasteAs: return [KeyCombo("return", [.command, .shift])]
+        case .newClip: return [KeyCombo("=", [.command]), KeyCombo("+", [.command, .shift]), KeyCombo("+", [.command])]
         case .edit: return [KeyCombo("e", [.command])]
         case .saveAs: return [KeyCombo("s", [.command])]
         case .pin: return [KeyCombo("p", [.command])]

@@ -76,6 +76,8 @@ method, code signing, and dependency safety.
 - ⌘P pins a clip to the top.
 
 **Change and export**
+- ⌘+ (or ⌘=) opens an empty editor: type a clip in, without copying it
+  first.
 - ⌘E edits text, or crops an image. The result is a new clip; the original
   stays.
 - ⌘S saves the clip as a file. The save panel offers the formats for that
@@ -117,6 +119,7 @@ type, and the answers to common problems.
 | ⏎ ⇧⏎ ⌥⏎ ⌘⇧⏎ | Paste, paste plain, copy only, paste as… |
 | ⌘1 – ⌘9 | Paste slot 1 to 9 |
 | ␣ (space) | Full preview |
+| ⌘+ ⌘= | New clip: type it in |
 | ⌘E ⌘S ⌘O | Edit or crop, save as…, open |
 | ⌘⇧S ⌥⌘S | Share…, send with AirDrop |
 | ⌘⇧K | Send to a phone (LocalSend)… |

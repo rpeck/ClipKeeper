@@ -174,6 +174,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         eyedropper.target = self
         menu.addItem(eyedropper)
 
+        let newClipItem = NSMenuItem(title: "New Clip…", action: #selector(newClipFromMenu), keyEquivalent: "")
+        newClipItem.target = self
+        menu.addItem(newClipItem)
+
         let importItem = NSMenuItem(title: "Import Files as Clips…", action: #selector(importFilesFromMenu), keyEquivalent: "")
         importItem.target = self
         menu.addItem(importItem)
@@ -228,6 +232,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if let url = URL(string: "https://github.com/rpeck/ClipKeeper/blob/main/docs/USER-GUIDE.md") {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    @objc private func newClipFromMenu() {
+        shelf.newClip(into: shelf.viewModel.currentSet)
     }
 
     @objc private func importFilesFromMenu() {

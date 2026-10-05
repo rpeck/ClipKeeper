@@ -39,6 +39,7 @@ final class ShelfController {
         viewModel.requestPaste = { [weak self] clip, variant in self?.paste(clip, variant: variant, keystroke: true) }
         viewModel.requestCopyOnly = { [weak self] clip, variant in self?.paste(clip, variant: variant, keystroke: false) }
         viewModel.requestEdit = { [weak self] clip in self?.edit(clip) }
+        viewModel.requestNewClip = { [weak self] set in self?.newClip(into: set) }
         viewModel.requestSaveAs = { [weak self] clips in self?.saveAs(clips) }
         viewModel.requestOpenSettings = { [weak self] in self?.hide { self?.openSettings() } }
         viewModel.requestImportFiles = { [weak self] set in self?.chooseFilesToImport(into: set) }
@@ -211,6 +212,19 @@ final class ShelfController {
                 }
             }
         }
+    }
+
+    /// An empty editor. The text becomes a new clip at the top of the set
+    /// that was open in the shelf: History, or a collection.
+    func newClip(into set: ClipSet) {
+        let store = self.store
+        let present = {
+            TextEditorWindow.present(text: "", isCode: false, language: nil, title: "New Clip", mode: .new(setName: set.name)) { text in
+                guard let clip = store.createTextClip(text) else { return }
+                if set.collectionID != nil { store.move([clip], to: set) }
+            }
+        }
+        if isVisible { hide { present() } } else { present() }
     }
 
     // MARK: Share
