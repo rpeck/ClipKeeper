@@ -68,6 +68,8 @@ final class ShelfViewModel: ObservableObject {
     var requestImportFiles: (ClipSet) -> Void = { _ in }
     /// Imports these files as separate clips into the given set, and reports the outcome.
     var requestImport: ([URL], ClipSet) -> Void = { _, _ in }
+    /// Shares clips: the share menu, or AirDrop directly when the flag is true.
+    var requestShare: ([Clip], Bool) -> Void = { _, _ in }
     /// Called while the left-edge handle is dragged, with the mouse x in screen coordinates.
     var requestResize: (CGFloat) -> Void = { _ in }
     var requestResizeEnd: () -> Void = {}
@@ -345,6 +347,10 @@ final class ShelfViewModel: ObservableObject {
         case .keepShelfOpen:
             pinned.toggle()
             showToast(pinned ? "Shelf stays open. Press Esc to close it." : "Shelf closes after a paste again")
+            return true
+        case .share, .airDrop:
+            let targets = actionTargets
+            if targets.isEmpty { showToast("Select a clip first") } else { requestShare(targets, action == .airDrop) }
             return true
         }
     }

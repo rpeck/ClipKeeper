@@ -43,6 +43,7 @@ final class ShelfController {
         viewModel.requestOpenSettings = { [weak self] in self?.hide { self?.openSettings() } }
         viewModel.requestImportFiles = { [weak self] set in self?.chooseFilesToImport(into: set) }
         viewModel.requestImport = { [weak self] urls, set in self?.importFiles(urls, into: set) }
+        viewModel.requestShare = { [weak self] clips, airDrop in self?.share(clips, airDropOnly: airDrop) }
         viewModel.requestResize = { [weak self] mouseX in self?.resize(toMouseX: mouseX) }
         viewModel.requestResizeEnd = { [weak self] in self?.finishResize() }
 
@@ -210,6 +211,20 @@ final class ShelfController {
                 }
             }
         }
+    }
+
+    // MARK: Share
+
+    /// Opens the share menu over the shelf, or AirDrop straight away.
+    private func share(_ clips: [Clip], airDropOnly: Bool) {
+        let ok: Bool
+        if airDropOnly {
+            ok = Sharer.airDrop(clips, store: store)
+        } else {
+            let anchor = NSRect(x: hosting.bounds.maxX - 40, y: hosting.bounds.maxY - 44, width: 1, height: 1)
+            ok = Sharer.showPicker(for: clips, store: store, in: hosting, at: anchor)
+        }
+        if !ok { viewModel.showToast("Nothing to share") }
     }
 
     // MARK: Import files

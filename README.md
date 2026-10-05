@@ -81,6 +81,7 @@ method, code signing, and dependency safety.
 - ⌘S saves the clip as a file. The save panel offers the formats for that
   type, original first.
 - ⌘O opens a link in the browser, or reveals files in Finder.
+- ⌘⇧S shares a clip with any app or device; ⌥⌘S goes straight to AirDrop.
 
 **Bring files in**
 - ⌘I imports files as separate clips: a Markdown file becomes a Markdown
@@ -114,6 +115,7 @@ type, and the answers to common problems.
 | ⌘1 – ⌘9 | Paste slot 1 to 9 |
 | ␣ (space) | Full preview |
 | ⌘E ⌘S ⌘O | Edit or crop, save as…, open |
+| ⌘⇧S ⌥⌘S | Share…, send with AirDrop |
 | ⌘I ⌘⇧I | Import files, import a Files clip's contents |
 | ⌘P ⌘M ⌘D ⌘⌫ | Pin, move to collection, duplicate, delete |
 | ⌘N ⌘R | New collection, rename collection |

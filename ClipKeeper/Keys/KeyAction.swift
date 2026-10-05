@@ -15,6 +15,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
     case openLink
     case importFiles, importContents
     case keepShelfOpen
+    case share, airDrop
     case newCollection, renameCollection, deleteCollection
     case slot1, slot2, slot3, slot4, slot5, slot6, slot7, slot8, slot9
 
@@ -47,6 +48,8 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .importFiles: return "Import files…"
         case .importContents: return "Import the contents of the files in this clip"
         case .keepShelfOpen: return "Keep the shelf open (pin)"
+        case .share: return "Share… (AirDrop, Messages, Mail, Notes)"
+        case .airDrop: return "Send with AirDrop"
         case .newCollection: return "New collection…"
         case .renameCollection: return "Rename collection…"
         case .deleteCollection: return "Delete collection…"
@@ -67,7 +70,7 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .moveUp, .moveDown, .previousSet, .nextSet, .togglePreview, .close, .openSettings, .keepShelfOpen: return "Navigation"
         case .paste, .pastePlain, .copyOnly, .pasteAs: return "Paste"
         case .slot1, .slot2, .slot3, .slot4, .slot5, .slot6, .slot7, .slot8, .slot9: return "Slots"
-        case .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .openLink, .importFiles, .importContents: return "Clip"
+        case .edit, .saveAs, .pin, .moveToCollection, .duplicate, .delete, .openLink, .importFiles, .importContents, .share, .airDrop: return "Clip"
         case .toggleSelectMode, .selectAll, .extendSelectionUp, .extendSelectionDown: return "Selection"
         case .newCollection, .renameCollection, .deleteCollection: return "Collections"
         }
@@ -119,6 +122,8 @@ enum KeyAction: String, Codable, CaseIterable, Identifiable {
         case .importFiles: return [KeyCombo("i", [.command])]
         case .importContents: return [KeyCombo("i", [.command, .shift])]
         case .keepShelfOpen: return [KeyCombo("p", [.command, .shift])]
+        case .share: return [KeyCombo("s", [.command, .shift])]
+        case .airDrop: return [KeyCombo("s", [.command, .option])]
         case .newCollection: return [KeyCombo("n", [.command])]
         case .renameCollection: return [KeyCombo("r", [.command])]
         case .deleteCollection: return []

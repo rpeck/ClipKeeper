@@ -25,6 +25,7 @@ Keys are written like this: `⌃⌘V`. Safety notes are marked with 🛡.
 - [Work with several clips at once](#work-with-several-clips-at-once)
 - [Edit and crop](#edit-and-crop)
 - [Save a clip as a file](#save-a-clip-as-a-file)
+- [Share and AirDrop](#share-and-airdrop)
 - [Open links and files](#open-links-and-files)
 - [Import files as clips](#import-files-as-clips)
 - [The eyedropper](#the-eyedropper)
@@ -389,6 +390,29 @@ the new clip.
 With several clips checked, `⌘S` asks for a folder and saves each clip in
 its default format. Names that collide get a number.
 
+## Share and AirDrop
+
+Send a clip to another device or app without leaving the shelf.
+
+- `⌘⇧S` opens the share menu for the selected clip, or for every checked
+  clip: AirDrop, Messages, Mail, Notes, Reminders, and any app that
+  accepts shares. Move with `↓` `↑` and press `Return`.
+- `⌥⌘S` goes straight to AirDrop. The AirDrop window lists the nearby
+  devices; click one, or press `Return` on it.
+
+What the receiver gets:
+
+- A single text, Markdown, or code clip arrives as text.
+- A link arrives as a link.
+- An image arrives as an image file in its original format.
+- Rich text arrives as an RTF file, and several text clips at once arrive
+  as files, one per clip.
+- A Files clip sends the files themselves.
+
+On an iPhone or iPad, AirDropped text opens in Notes and can be copied
+from there. Images land in Photos and files in the Files app. AirDrop
+reaches Apple devices only; Android phones need a different path.
+
 ## Open links and files
 
 - `⌘O` on a link opens it in the default browser.
@@ -561,6 +585,8 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 | `␣` (space) | Full preview |
 | `⌘E` | Edit text, or crop an image |
 | `⌘S` | Save as… |
+| `⌘⇧S` | Share… |
+| `⌥⌘S` | Send with AirDrop |
 | `⌘O` | Open link, or reveal files |
 | `⌘I` | Import files… |
 | `⌘⇧I` | Import the contents of a Files clip as clips |

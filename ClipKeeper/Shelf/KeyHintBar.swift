@@ -19,6 +19,7 @@ struct KeyHintBar: View {
             hints.append((combo(.pasteAs), "\(pasteWord) as…"))
             if let clip, clip.kind == .image { hints.append((combo(.edit), "Crop")) } else if let clip, clip.kind != .files { hints.append((combo(.edit), "Edit")) }
             hints.append((combo(.saveAs), "Save as…"))
+            hints.append((combo(.share), "Share"))
             hints.append((combo(.togglePreview), "Preview"))
             hints.append((combo(.moveToCollection), "Move"))
             if let clip, clip.kind == .link { hints.append((combo(.openLink), "Open")) }
