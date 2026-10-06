@@ -164,7 +164,10 @@ struct VerifyOverlay: View {
             .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
             HStack {
                 Spacer()
-                Button("They differ") { model.overlay = nil }
+                Button("They differ") {
+                    NSLog("send: verify: the user said the characters differ")
+                    model.overlay = nil
+                }
                     .keyboardShortcut(.cancelAction)
                 Button("They match") { onConfirm() }
                     .keyboardShortcut(.defaultAction)

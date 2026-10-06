@@ -12,10 +12,13 @@ extension ShelfViewModel {
     /// True while a send needs the user: the comparison, the progress, the PIN
     /// prompt, or a result. The shelf then stays open when it loses focus,
     /// because the user often looks at, or clicks on, the other device.
+    static let whichDeviceTitle = "Which device is this?"
+
     var holdsShelfOpenForTransfer: Bool {
         switch overlay {
         case .verify, .progress, .message: return true
         case .prompt(let title, _, _, _): return title.hasPrefix("PIN for ")
+        case .picker(let title, _, _): return title == Self.whichDeviceTitle
         default: return false
         }
     }
@@ -103,6 +106,7 @@ extension ShelfViewModel {
             let code = TransferSender.combinedFingerprint(mine, device.fingerprint)
             let message = "Compare all of the characters with the other device. Send only if they match.\n• A phone or a Mac with LocalSend: tap this Mac in LocalSend, then Verify, then Text.\n• A Mac with ClipKeeper: its fingerprint in Settings › Devices is the top four rows or the bottom four rows here. This Mac's fingerprint is the other four."
             self.overlay = .verify(title: "Verify \(device.alias)", message: message, code: code) { [weak self] in
+                sendLog("verify: the user confirmed the comparison")
                 self?.chooseRecord(for: device, then: items)
             }
         }
@@ -122,7 +126,8 @@ extension ShelfViewModel {
         pickerItems.append(PickerItem(id: "__new__", title: "A new device: \(device.alias)", symbol: "plus"))
         // Devices added in Settings first, then a new entry.
         overlaySelection = 0
-        overlay = .picker(title: "Which device is this?", items: pickerItems) { item in
+        sendLog("verify: asking which device this is, \(candidates.count) candidate(s)")
+        overlay = .picker(title: Self.whichDeviceTitle, items: pickerItems) { item in
             finish(candidates.first { $0.uuid == item.id })
         }
     }

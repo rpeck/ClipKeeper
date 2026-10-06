@@ -245,7 +245,11 @@ final class ShelfViewModel: ObservableObject {
             return true
         case .verify(_, _, _, let onConfirm):
             // Only Return confirms. No single letter does, so a stray key cannot verify a device.
-            if combo.key == "escape" { self.overlay = nil; return true }
+            if combo.key == "escape" {
+                NSLog("send: verify: the user said the characters differ")
+                self.overlay = nil
+                return true
+            }
             if combo.isEnter, combo.modifiers.isEmpty { self.overlay = nil; onConfirm(); return true }
             return true
         case .progress(_, let onCancel):

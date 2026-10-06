@@ -102,6 +102,9 @@ final class ShelfController {
 
     func hide(completion: (() -> Void)? = nil) {
         guard isVisible else { completion?(); return }
+        if viewModel.holdsShelfOpenForTransfer {
+            NSLog("send: the shelf closed while a send waited for the user")
+        }
         isVisible = false
         openedByEdge = false
         viewModel.isActive = false
