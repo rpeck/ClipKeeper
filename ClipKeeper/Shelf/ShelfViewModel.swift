@@ -19,6 +19,8 @@ final class ShelfViewModel: ObservableObject {
         case confirm(title: String, message: String, confirmTitle: String, onConfirm: () -> Void)
         /// The fingerprint comparison before the first send to a device.
         case verify(title: String, message: String, code: String, onConfirm: () -> Void)
+        /// A result that must not vanish, such as a failed send. Return or Escape closes it.
+        case message(title: String, message: String)
         /// Work in progress, such as a send. Escape cancels it.
         case progress(title: String, onCancel: () -> Void)
 
@@ -29,6 +31,7 @@ final class ShelfViewModel: ObservableObject {
             case .confirm(let t, _, _, _): return "confirm-\(t)"
             case .verify(let t, _, _, _): return "verify-\(t)"
             case .progress(let t, _): return "progress-\(t)"
+            case .message(let t, _): return "message-\(t)"
             }
         }
     }
@@ -247,6 +250,9 @@ final class ShelfViewModel: ObservableObject {
             return true
         case .progress(_, let onCancel):
             if combo.key == "escape" { self.overlay = nil; onCancel(); return true }
+            return true
+        case .message:
+            if combo.key == "escape" || combo.isEnter { self.overlay = nil }
             return true
         }
     }

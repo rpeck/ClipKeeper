@@ -57,6 +57,8 @@ final class EdgeTrigger {
 
         if shelf.isVisible {
             guard shelf.openedByEdge, prefs.edgeAutoHide, !prefs.shelfPinned else { return }
+            // A send in progress waits for the user, who may be at the other device.
+            guard !shelf.viewModel.holdsShelfOpenForTransfer else { return }
             // A generous frame: the panel plus a margin, extended to the screen edge.
             var zone = shelf.panelFrame.insetBy(dx: -leaveMargin, dy: -leaveMargin)
             zone.size.width = screen.frame.maxX - zone.minX + 1

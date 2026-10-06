@@ -53,6 +53,8 @@ final class ShelfController {
                 guard let self, self.isVisible, !self.isAnimating else { return }
                 // A pinned shelf stays open when another window takes the key.
                 if self.viewModel.pinned { return }
+                // A send in progress waits for the user, who may be at the other device.
+                if self.viewModel.holdsShelfOpenForTransfer { return }
                 // A popover or other child window of the shelf took the key. Stay open.
                 if let key = NSApp.keyWindow, key !== self.panel, key.parent === self.panel || key.className.contains("Popover") { return }
                 self.hide()

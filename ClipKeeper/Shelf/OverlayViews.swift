@@ -31,6 +31,8 @@ struct OverlayHost: View {
                         model.overlay = nil
                         onConfirm()
                     }
+                case .message(let title, let message):
+                    MessageOverlay(model: model, title: title, message: message)
                 case .progress(let title, let onCancel):
                     ProgressOverlay(title: title) {
                         model.overlay = nil
@@ -168,6 +170,26 @@ struct VerifyOverlay: View {
                     .keyboardShortcut(.defaultAction)
             }
             HintRow(hints: [("⏎", "They match"), ("esc", "They differ")])
+        }
+    }
+}
+
+struct MessageOverlay: View {
+    @ObservedObject var model: ShelfViewModel
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(title, systemImage: "exclamationmark.triangle.fill")
+                .font(.headline)
+                .foregroundStyle(.orange)
+            Text(message).font(.callout).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+            HStack {
+                Spacer()
+                Button("OK") { model.overlay = nil }.keyboardShortcut(.defaultAction)
+            }
+            HintRow(hints: [("⏎", "OK")])
         }
     }
 }

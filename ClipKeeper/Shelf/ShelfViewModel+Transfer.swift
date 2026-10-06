@@ -1,8 +1,25 @@
 import Foundation
 
+/// One line per step of a send, to the app's output. Addresses and statuses
+/// only: never content, never a PIN.
+private func sendLog(_ message: String) {
+    NSLog("send: %@", message)
+}
+
 /// The send flow in the shelf: pick a device, verify it once, send, and
 /// answer a PIN prompt when the phone asks for one. All keyboard.
 extension ShelfViewModel {
+    /// True while a send needs the user: the comparison, the progress, the PIN
+    /// prompt, or a result. The shelf then stays open when it loses focus,
+    /// because the user often looks at, or clicks on, the other device.
+    var holdsShelfOpenForTransfer: Bool {
+        switch overlay {
+        case .verify, .progress, .message: return true
+        case .prompt(let title, _, _, _): return title.hasPrefix("PIN for ")
+        default: return false
+        }
+    }
+
     func showSendPicker(for clips: [Clip]) {
         guard let transfer else { return }
         guard transfer.isEnabled, case .running = transfer.state else {
@@ -25,9 +42,10 @@ extension ShelfViewModel {
                 self.overlay = nil
                 let again = transfer.sendTargets()
                 guard !again.verified.isEmpty || !again.unverified.isEmpty else {
-                    self.showToast(transfer.multicastBlocked
-                        ? "macOS blocks the local network for ClipKeeper. See Settings › Devices."
-                        : "No device found. Open LocalSend on the phone, on the same network.")
+                    sendLog("no device found; multicast blocked: \(transfer.multicastBlocked)")
+                    self.overlay = .message(title: "No phone or Mac found", message: transfer.multicastBlocked
+                        ? "macOS blocks the local network for ClipKeeper, so other devices cannot hear this Mac. See Settings › Devices."
+                        : "Open LocalSend on the phone, or ClipKeeper on the other Mac, on the same network. In Settings › Devices, the list under Heard on This Network shows what this Mac hears.")
                     return
                 }
                 self.presentSendPicker(items, targets: again)
@@ -62,7 +80,12 @@ extension ShelfViewModel {
     /// the combined fingerprint for comparison with the phone's Verify page.
     private func verify(_ device: DiscoveredDevice, then items: [OutgoingItem]) {
         guard let transfer, let mine = transfer.fingerprint else { return }
-        guard transfer.isSendable(device) else { return showToast("That device is not on an allowed network") }
+        guard transfer.isSendable(device) else {
+            sendLog("verify: \(device.address) is not on an allowed network")
+            overlay = .message(title: "Cannot reach \(device.alias)", message: "\(device.address) is not on a network that Settings › Devices allows.")
+            return
+        }
+        sendLog("verify: probing \(device.address):\(device.port)")
         let sender = TransferSender(address: device.address, port: device.port, fingerprint: device.fingerprint)
         overlay = .progress(title: "Connecting to \(device.alias)…") { [weak self] in self?.sendTask?.cancel() }
         sendTask = Task { @MainActor [weak self] in
@@ -70,11 +93,13 @@ extension ShelfViewModel {
                 _ = try await sender.probe()
             } catch {
                 guard let self, !Task.isCancelled else { return }
-                self.overlay = nil
-                self.showToast((error as? SendError)?.message ?? "The device did not answer")
+                let message = (error as? SendError)?.message ?? "The device did not answer."
+                sendLog("verify: probe of \(device.address):\(device.port) failed: \(error)")
+                self.overlay = .message(title: "Cannot reach \(device.alias)", message: message + " Check that the other device is on, on the same network, and that its firewall allows ClipKeeper or LocalSend.")
                 return
             }
             guard let self, !Task.isCancelled else { return }
+            sendLog("verify: probe ok, showing the comparison")
             let code = TransferSender.combinedFingerprint(mine, device.fingerprint)
             let message = "Compare all of the characters with the other device. Send only if they match.\n• A phone or a Mac with LocalSend: tap this Mac in LocalSend, then Verify, then Text.\n• A Mac with ClipKeeper: its fingerprint in Settings › Devices is the top four rows or the bottom four rows here. This Mac's fingerprint is the other four."
             self.overlay = .verify(title: "Verify \(device.alias)", message: message, code: code) { [weak self] in
@@ -88,6 +113,7 @@ extension ShelfViewModel {
         guard let transfer else { return }
         let candidates = transfer.devices.filter { $0.verifiedFingerprint == nil }
         let finish: (PairedDevice?) -> Void = { [weak self] existing in
+            sendLog("verify: confirmed, recorded as \(existing?.name ?? "a new device")")
             transfer.markVerified(device, as: existing)
             self?.send(items, to: device, name: existing?.name ?? device.alias, pin: nil)
         }
@@ -103,7 +129,12 @@ extension ShelfViewModel {
 
     private func send(_ items: [OutgoingItem], to device: DiscoveredDevice, name: String, pin: String?) {
         guard let transfer, let info = transfer.ownInfo else { return }
-        guard transfer.isSendable(device) else { return showToast("That device is not on an allowed network") }
+        guard transfer.isSendable(device) else {
+            sendLog("send: \(device.address) is not on an allowed network")
+            overlay = .message(title: "Cannot reach \(name)", message: "\(device.address) is not on a network that Settings › Devices allows.")
+            return
+        }
+        sendLog("send: \(items.count) item(s) to \(device.address):\(device.port), with PIN: \(pin != nil)")
         let sender = TransferSender(address: device.address, port: device.port, fingerprint: device.fingerprint)
         let bytes = Int64(items.reduce(0) { $0 + $1.data.count })
         overlay = .progress(title: "Sending to \(name)…") { [weak self] in
@@ -114,6 +145,7 @@ extension ShelfViewModel {
             do {
                 let outcome = try await sender.send(items, from: info, pin: pin)
                 guard let self, !Task.isCancelled else { return }
+                sendLog("send: outcome \(outcome)")
                 switch outcome {
                 case .sent:
                     self.overlay = nil
@@ -125,6 +157,7 @@ extension ShelfViewModel {
             } catch {
                 guard let self else { return }
                 let sendError = (error as? SendError) ?? .network
+                sendLog("send: failed: \(error)")
                 if Task.isCancelled || sendError == .cancelled {
                     transfer.logSend(device: name, address: device.address, count: items.count, bytes: 0, outcome: "cancelled")
                     return
@@ -136,7 +169,7 @@ extension ShelfViewModel {
                     transfer.dropDiscovered(device)
                 }
                 transfer.logSend(device: name, address: device.address, count: items.count, bytes: 0, outcome: "failed")
-                self.showToast(sendError.message)
+                self.overlay = .message(title: "Not sent to \(name)", message: sendError.message)
             }
         }
     }
@@ -145,7 +178,8 @@ extension ShelfViewModel {
     /// verified device, over the pinned connection, and is not stored.
     private func askPhonePIN(_ items: [OutgoingItem], to device: DiscoveredDevice, name: String) {
         promptText = ""
-        overlay = .prompt(title: "PIN for \(name)", placeholder: "The PIN that LocalSend on the phone uses", initial: "") { [weak self] pin in
+        sendLog("send: \(device.address) asks for a PIN")
+        overlay = .prompt(title: "PIN for \(name)", placeholder: "The PIN that \(name) issued for this Mac, or the phone's LocalSend PIN", initial: "") { [weak self] pin in
             let clean = pin.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !clean.isEmpty else { return }
             self?.send(items, to: device, name: name, pin: clean)
