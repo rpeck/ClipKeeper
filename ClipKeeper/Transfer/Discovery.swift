@@ -129,7 +129,11 @@ final class DiscoveryService {
         }
         if result != lastSendErrno {
             lastSendErrno = result
-            if result != 0 { NSLog("discovery: an announcement failed: %s", strerror(result)) }
+            if result != 0 {
+                NSLog("discovery: an announcement failed: %s", strerror(result))
+            } else {
+                NSLog("discovery: announcements go out")
+            }
             onSendResult?(result)
         }
     }
