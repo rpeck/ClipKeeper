@@ -32,6 +32,9 @@ struct PersonalDataFlags: OptionSet, Hashable {
 /// of a known key format. Pattern matching misses some data and flags some
 /// harmless text; it supports an audit and guarantees nothing.
 enum PersonalDataDetector {
+    /// Increase this when a rule changes. At launch, a new version clears the
+    /// stored flags, so that every clip is scanned again.
+    static let version = 2
     static let maxCharacters = 50_000
     static let budgetSeconds = 0.3
 
@@ -70,7 +73,8 @@ enum PersonalDataDetector {
         // Phone numbers and postal addresses: the system's data detector.
         if let detector = Patterns.dataDetector {
             for match in detector.matches(in: sample, range: range) {
-                if match.resultType == .phoneNumber, let number = match.phoneNumber, number.filter(\.isNumber).count >= 10 {
+                if match.resultType == .phoneNumber, let number = match.phoneNumber, number.filter(\.isNumber).count >= 10,
+                   let r = Range(match.range, in: sample), isPlausiblePhone(String(sample[r])) {
                     flags.insert(.phone)
                 }
                 if match.resultType == .address { flags.insert(.address) }
@@ -113,6 +117,16 @@ enum PersonalDataDetector {
                 || starts(3_528, 3_589, 4)                                           // JCB
         default: return false
         }
+    }
+
+    /// A written phone number: international, with a leading +, or in groups
+    /// of at most 4 digits, such as (415) 555-0132. A bare run of digits is
+    /// more often a timestamp or an id in code.
+    static func isPlausiblePhone(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("+") { return true }
+        let groups = trimmed.split { !$0.isNumber }
+        return groups.count > 1 && groups.allSatisfy { $0.count <= 4 }
     }
 
     /// AAA-GG-SSSS, never issued with area 000, 666, or 900-999, group 00, or serial 0000.

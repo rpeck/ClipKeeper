@@ -27,6 +27,7 @@ enum PrefKey {
     static let recordOtherDevices = "recordOtherDevices"
     static let recordWhileLocked = "recordWhileLocked"
     static let handoffBackfillDone = "handoffBackfillDone"
+    static let personalDataDetectorVersion = "personalDataDetectorVersion"
     static let transferEnabled = "transferEnabled"
     static let transferAlias = "transferAlias"
     static let transferInterfaces = "transferInterfaces"
@@ -157,6 +158,11 @@ final class Preferences: ObservableObject {
     var handoffBackfillDone: Bool {
         get { defaults.bool(forKey: PrefKey.handoffBackfillDone) }
         set { defaults.set(newValue, forKey: PrefKey.handoffBackfillDone) }
+    }
+    /// The PersonalDataDetector version that made the stored flags.
+    var personalDataDetectorVersion: Int {
+        get { defaults.integer(forKey: PrefKey.personalDataDetectorVersion) }
+        set { defaults.set(newValue, forKey: PrefKey.personalDataDetectorVersion) }
     }
     var isPaused: Bool {
         get { defaults.bool(forKey: PrefKey.isPaused) }

@@ -68,6 +68,14 @@ import Testing
     @Test func phoneNeedsTenDigits() {
         #expect(PersonalDataDetector.detect("Call +1 (415) 555-0132 tomorrow").contains(.phone))
         #expect(!PersonalDataDetector.detect("extension 555-0132").contains(.phone))
+        #expect(PersonalDataDetector.detect("Office: +14155550132").contains(.phone))
+    }
+
+    @Test func timestampsAreNotPhones() {
+        #expect(!PersonalDataDetector.detect("headers = {'X-Epoch: 1760380000', 'ok'}").contains(.phone))
+        #expect(!PersonalDataDetector.detect("1 2.5 3.5 4.5 1234567 12345 ok").contains(.phone))
+        #expect(PersonalDataDetector.isPlausiblePhone("(415) 555-0132"))
+        #expect(!PersonalDataDetector.isPlausiblePhone("1760380000"))
     }
 
     @Test func plainCodeHasNoFlags() {
@@ -199,6 +207,16 @@ import Testing
         let unscanned = try database.queue.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM clip WHERE piiFlags IS NULL") }
         #expect(unscanned == 0)
         #expect(ClipStore.scanPending(in: database.queue) == false)
+    }
+
+    @Test func resetRescansEveryClip() throws {
+        _ = ClipStore.scanPending(in: database.queue)
+        store.resetPersonalDataFlags()
+        let cleared = try database.queue.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM clip WHERE piiFlags IS NULL") }
+        #expect(cleared == 4)
+        _ = ClipStore.scanPending(in: database.queue)
+        let left = try database.queue.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM clip WHERE piiFlags IS NULL") }
+        #expect(left == 0)
     }
 
     @Test func summaries() throws {

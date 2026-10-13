@@ -189,6 +189,12 @@ final class ClipStore: ObservableObject {
         }) ?? []
     }
 
+    /// Clears every personal-data flag, so that the next scan checks every
+    /// clip with the current rules.
+    func resetPersonalDataFlags() {
+        try? db.write { db in try db.execute(sql: "UPDATE clip SET piiFlags = NULL") }
+    }
+
     /// Scans the clips that were never scanned for personal data, off the
     /// main thread, in batches. Each change to the store starts a scan, so a
     /// capture never waits for the detector.

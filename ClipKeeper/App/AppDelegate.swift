@@ -30,7 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         store = ClipStore(database: database, blobs: .standard(), prefs: prefs)
-        // Clips stored before the personal-data flags: scan them in the background.
+        // Clips stored before the personal-data flags, or flagged by older
+        // rules: scan them in the background.
+        if prefs.personalDataDetectorVersion != PersonalDataDetector.version {
+            store.resetPersonalDataFlags()
+            prefs.personalDataDetectorVersion = PersonalDataDetector.version
+        }
         store.scanUnscannedForPersonalData()
         if !prefs.handoffBackfillDone {
             // Once: mark the Universal Clipboard clips that older versions stored.
