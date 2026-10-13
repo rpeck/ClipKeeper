@@ -90,7 +90,8 @@ You can change all three later in Settings › General.
 
 Click the clipboard icon in the menu bar for these items:
 
-- **Open Shelf.** Same as the hotkey.
+- **Toggle Shelf.** Opens the shelf, or closes it when it is open. Same as
+  the hotkey.
 - **Pause Capture / Resume Capture.** Stops or restarts recording. See
   [Pause capture](#pause-capture).
 - **Pick a Color with Eyedropper….** See [The eyedropper](#the-eyedropper).
@@ -109,7 +110,7 @@ There are three ways to open the shelf:
 - **Mouse.** Rest the pointer at the right edge of the screen for a moment.
   The shelf slides in on that screen. Move the pointer away from the shelf
   and it slides out again.
-- **Menu bar.** Click the icon and choose Open Shelf.
+- **Menu bar.** Click the icon and choose Toggle Shelf.
 
 The shelf also closes when you click anywhere outside it, and after a
 paste.

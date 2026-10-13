@@ -199,7 +199,7 @@ For the Xcode method, code signing, and dependency safety, see
   - **Storage:** the limits on History, and the disk use.
   - **Devices:** phones and other Macs.
 - The clipboard icon in the menu bar has these items:
-  - Open Shelf.
+  - Toggle Shelf, which opens the shelf, or closes it when it is open.
   - Pause Capture, which stops the recording of copies until you resume.
   - Pick a Color with Eyedropper, which takes a color from the screen.
   - New Clip, which opens the empty editor.

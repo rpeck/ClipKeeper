@@ -161,9 +161,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildStatusMenu(_ menu: NSMenu) {
         menu.removeAllItems()
         let hotkey = KeyboardShortcuts.getShortcut(for: .toggleShelf)?.description ?? ""
-        let open = NSMenuItem(title: "Open Shelf", action: #selector(toggleShelf), keyEquivalent: "")
+        let open = NSMenuItem(title: "Toggle Shelf", action: #selector(toggleShelf), keyEquivalent: "")
         open.target = self
-        if !hotkey.isEmpty { open.title = "Open Shelf    \(hotkey)" }
+        if !hotkey.isEmpty { open.title = "Toggle Shelf    \(hotkey)" }
         menu.addItem(open)
 
         let pause = NSMenuItem(title: prefs.isPaused ? "Resume Capture" : "Pause Capture", action: #selector(togglePause), keyEquivalent: "")
