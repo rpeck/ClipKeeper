@@ -349,6 +349,13 @@ final class ClipStore: ObservableObject {
         bump()
     }
 
+    /// Clips whose stored snapshot carries Apple's Universal Clipboard mark,
+    /// in History and in collections.
+    func clipsFromOtherDevices() -> [Clip] {
+        let all = (try? db.read { db in try Clip.fetchAll(db) }) ?? []
+        return all.filter { blobs.loadSnapshot(for: $0.uuid)?.has(PBType.remoteClipboard) ?? false }
+    }
+
     func clearHistory() {
         let victims = (try? db.read { db in try Clip.filter(Clip.Columns.collectionID == nil).filter(Clip.Columns.pinned == false).fetchAll(db) }) ?? []
         delete(victims)

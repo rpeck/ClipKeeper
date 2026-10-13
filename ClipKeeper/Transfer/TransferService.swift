@@ -307,10 +307,7 @@ final class TransferService: ObservableObject {
     }
 
     /// The lock state at this moment, from the window server.
-    static func isScreenLockedNow() -> Bool {
-        guard let info = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
-        return (info["CGSSessionScreenIsLocked"] as? Bool) ?? false
-    }
+    static func isScreenLockedNow() -> Bool { ScreenLock.isLocked() }
 
     private func refuseOpenDialog() {
         if activeDialog != nil { NSApp.abortModal() }

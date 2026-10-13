@@ -86,3 +86,22 @@ import Testing
         #expect(reloaded.action(for: combo) == .moveUp)
     }
 }
+
+@Suite @MainActor struct NonLatinLayoutTests {
+    /// Under a Russian layout, Cmd-Shift-D gives "в"; it must still mean D.
+    @Test func cyrillicCharacterMapsToTheLatinKey() throws {
+        let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command, .shift], timestamp: 0, windowNumber: 0, context: nil,
+                                                  characters: "В", charactersIgnoringModifiers: "В", isARepeat: false, keyCode: 2))
+        let combo = KeyCombo(event: event)
+        #expect(combo == KeyCombo("d", [.command, .shift]))
+    }
+
+    @Test func pasteNeverWritesTheRemoteMark() {
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("RemoteMark-\(UUID().uuidString)"))
+        let snapshot = PasteboardSnapshot(items: [[PBType.string: Data("x".utf8), PBType.remoteClipboard: Data()]])
+        _ = snapshot.write(to: pasteboard)
+        let types = (pasteboard.types ?? []).map(\.rawValue)
+        #expect(!types.contains(PBType.remoteClipboard))
+        #expect(types.contains(PBType.string))
+    }
+}

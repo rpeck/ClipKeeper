@@ -141,7 +141,9 @@ final class ShelfViewModel: ObservableObject {
     func prepareForShow() {
         isActive = true
         needsReload = false
-        overlay = nil
+        // A send that waits for the user survives a close and a reopen: the
+        // shelf comes back to the same step.
+        if !holdsShelfOpenForTransfer { overlay = nil }
         showFullPreview = false
         selectedUUIDs = []
         toast = nil
@@ -196,6 +198,11 @@ final class ShelfViewModel: ObservableObject {
 
     /// Returns true when the event was consumed.
     func handle(event: NSEvent) -> Bool {
+        if PasteboardMonitor.debug, event.modifierFlags.contains(.command) {
+            // Raw, before any parsing, so a press that cannot be parsed still shows.
+            NSLog("key raw: keyCode %d, flags 0x%lx, chars %@", Int(event.keyCode), event.modifierFlags.rawValue,
+                  (event.charactersIgnoringModifiers ?? "nil").unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "))
+        }
         guard let combo = KeyCombo(event: event) else { return false }
         if let overlay { return handleOverlay(overlay, combo: combo) }
         if showFullPreview {
@@ -209,9 +216,12 @@ final class ShelfViewModel: ObservableObject {
             return true
         }
         let resolved = bindings.resolve(event: event, searchHasText: !query.isEmpty)
-        if PasteboardMonitor.debug, let resolved {
-            // Only keys that match an action: never typed text, never clip content.
-            NSLog("key: %@ -> %@", combo.description, "\(resolved)")
+        if PasteboardMonitor.debug, resolved != nil || combo.modifiers.contains(.command) || combo.modifiers.contains(.control) {
+            // Keys that match an action, and any key with Command or Control,
+            // which is never typed text. Never clip content.
+            NSLog("key: %@ (keyCode %d, chars %@) -> %@", combo.description, Int(event.keyCode),
+                  (event.charactersIgnoringModifiers ?? "").unicodeScalars.map { String(format: "U+%04X", $0.value) }.joined(separator: " "),
+                  resolved.map { "\($0)" } ?? "none")
         }
         guard let action = resolved else { return false }
         return perform(action)

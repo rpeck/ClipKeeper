@@ -24,6 +24,8 @@ enum PrefKey {
     static let edgeAutoHide = "edgeAutoHide"
     static let searchNewestFirst = "searchNewestFirst"
     static let shelfPinned = "shelfPinned"
+    static let recordOtherDevices = "recordOtherDevices"
+    static let recordWhileLocked = "recordWhileLocked"
     static let transferEnabled = "transferEnabled"
     static let transferAlias = "transferAlias"
     static let transferInterfaces = "transferInterfaces"
@@ -59,6 +61,8 @@ final class Preferences: ObservableObject {
             PrefKey.edgeAutoHide: true,
             PrefKey.searchNewestFirst: false,
             PrefKey.shelfPinned: false,
+            PrefKey.recordOtherDevices: false,
+            PrefKey.recordWhileLocked: false,
             PrefKey.transferEnabled: false,
             PrefKey.transferAlias: "ClipKeeper Mac",
             PrefKey.transferInterfaces: [String](),
@@ -136,6 +140,18 @@ final class Preferences: ObservableObject {
     var shelfPinned: Bool {
         get { defaults.bool(forKey: PrefKey.shelfPinned) }
         set { defaults.set(newValue, forKey: PrefKey.shelfPinned); objectWillChange.send() }
+    }
+    /// Record copies that Universal Clipboard brings from the user's other
+    /// Apple devices. Off: a work Mac's copies never enter a home Mac's History.
+    var recordOtherDevices: Bool {
+        get { defaults.bool(forKey: PrefKey.recordOtherDevices) }
+        set { defaults.set(newValue, forKey: PrefKey.recordOtherDevices); objectWillChange.send() }
+    }
+    /// Record clipboard changes while the screen is locked. Off: nobody at
+    /// the keyboard, so a change then comes from somewhere else.
+    var recordWhileLocked: Bool {
+        get { defaults.bool(forKey: PrefKey.recordWhileLocked) }
+        set { defaults.set(newValue, forKey: PrefKey.recordWhileLocked); objectWillChange.send() }
     }
     var isPaused: Bool {
         get { defaults.bool(forKey: PrefKey.isPaused) }

@@ -17,6 +17,7 @@ import Testing
         store = ClipStore(database: try Database.inMemory(), blobs: .temporary(), prefs: prefs)
         pasteboard = NSPasteboard(name: NSPasteboard.Name("ClipKeeperTests-\(UUID().uuidString)"))
         monitor = PasteboardMonitor(store: store, prefs: prefs, pasteboard: pasteboard)
+        monitor.screenLocked = false
     }
 
     private func png() throws -> Data {
@@ -25,6 +26,56 @@ import Testing
         ctx.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
         let image = try #require(ctx.makeImage())
         return try #require(ImageConversion.data(from: image, format: .png))
+    }
+
+    /// A Universal Clipboard copy, as macOS marks it.
+    private func remoteCopy(_ text: String) {
+        pasteboard.clearContents()
+        let item = NSPasteboardItem()
+        item.setString(text, forType: .string)
+        item.setData(Data(), forType: NSPasteboard.PasteboardType(PBType.remoteClipboard))
+        pasteboard.writeObjects([item])
+    }
+
+    @Test func copiesFromOtherDevicesAreSkippedByDefault() {
+        remoteCopy("from the work Mac")
+        monitor.check()
+        monitor.check()
+        monitor.check()
+        #expect(store.clips(in: .history, query: "").isEmpty)
+        // A local copy afterwards is recorded as usual.
+        pasteboard.clearContents()
+        pasteboard.setString("typed here", forType: .string)
+        monitor.check()
+        monitor.check()
+        #expect(store.clips(in: .history, query: "").map(\.text) == ["typed here"])
+    }
+
+    @Test func copiesFromOtherDevicesAreRecordedWhenTheUserOptsIn() {
+        prefs.recordOtherDevices = true
+        remoteCopy("from the work Mac")
+        monitor.check()
+        monitor.check()
+        #expect(store.clips(in: .history, query: "").count == 1)
+        #expect(store.clipsFromOtherDevices().count == 1)
+    }
+
+    @Test func nothingIsRecordedWhileTheScreenIsLocked() {
+        monitor.screenLocked = true
+        pasteboard.clearContents()
+        pasteboard.setString("arrived while locked", forType: .string)
+        monitor.check()
+        monitor.check()
+        monitor.screenUnlocked()
+        monitor.check()
+        monitor.check()
+        // What arrived while locked is not recorded after the unlock either.
+        #expect(store.clips(in: .history, query: "").isEmpty)
+        pasteboard.clearContents()
+        pasteboard.setString("after the unlock", forType: .string)
+        monitor.check()
+        monitor.check()
+        #expect(store.clips(in: .history, query: "").map(\.text) == ["after the unlock"])
     }
 
     @Test func completeCopyIsStoredAfterTwoReads() {

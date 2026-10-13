@@ -525,6 +525,14 @@ answers common problems.
   - A PIN for each device.
   - Your OK on every transfer.
 - ClipKeeper skips the copies that password managers make.
+- ClipKeeper does not record copies from your other Apple devices. If two
+  Macs share an Apple Account, macOS Universal Clipboard puts each copy on
+  one Mac onto the clipboard of the other. For example, a work Mac's copies
+  reach a home Mac. ClipKeeper skips those copies, and Settings › Privacy
+  can delete any that an older version stored. To stop macOS from sharing
+  the clipboard at all, turn off Handoff in System Settings › General ›
+  AirDrop & Handoff on one of the Macs.
+- ClipKeeper records nothing while the screen is locked.
 - You can add apps that ClipKeeper must ignore, in Settings › Privacy.
 - Before you copy something that you do not want to keep, pause the
   capture from the menu bar icon.

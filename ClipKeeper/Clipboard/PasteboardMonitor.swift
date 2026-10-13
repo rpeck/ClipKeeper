@@ -27,6 +27,10 @@ final class PasteboardMonitor {
     }
     private var pending: Pending?
 
+    /// The screen is locked. Set by the lock notifications; tests set it directly.
+    var screenLocked = ScreenLock.isLocked()
+    private var lockObservers: [NSObjectProtocol] = []
+
     /// How long a change may stay incomplete before it is dropped.
     var settleTimeout: TimeInterval = 2.0
 
@@ -47,6 +51,7 @@ final class PasteboardMonitor {
         stop()
         lastChangeCount = pasteboard.changeCount
         pending = nil
+        watchScreenLock()
         let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.check() }
         }
@@ -58,6 +63,32 @@ final class PasteboardMonitor {
     func stop() {
         timer?.invalidate()
         timer = nil
+        for o in lockObservers { DistributedNotificationCenter.default().removeObserver(o) }
+        lockObservers = []
+    }
+
+    private func watchScreenLock() {
+        let center = DistributedNotificationCenter.default()
+        lockObservers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.screenLocked = true }
+        })
+        lockObservers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.screenUnlocked() }
+        })
+    }
+
+    /// After an unlock, what reached the clipboard while it was locked is not
+    /// recorded: the current state becomes the baseline.
+    func screenUnlocked() {
+        screenLocked = false
+        pending = nil
+        lastChangeCount = pasteboard.changeCount
+    }
+
+    /// True for a copy that Universal Clipboard brought from another device,
+    /// unless the user opted in to record those.
+    private func isFromOtherDevice(_ types: Set<String>) -> Bool {
+        !prefs.recordOtherDevices && types.contains(PBType.remoteClipboard)
     }
 
     /// Reads the pasteboard once. Call it on every tick. Never re-enters.
@@ -68,6 +99,14 @@ final class PasteboardMonitor {
 
         let count = pasteboard.changeCount
 
+        // While the screen is locked nobody is at the keyboard: consume every
+        // change without reading it.
+        if screenLocked, !prefs.recordWhileLocked {
+            lastChangeCount = count
+            pending = nil
+            return
+        }
+
         // A new change. Decide at once whether it is ours, paused, or excluded.
         if count != lastChangeCount, pending?.count != count {
             pending = nil
@@ -76,6 +115,13 @@ final class PasteboardMonitor {
                 return
             }
             let types = Set((pasteboard.types ?? []).map(\.rawValue))
+            // Checked on the declared types, before any data is read, so a copy
+            // from another device is not even fetched.
+            if isFromOtherDevice(types) {
+                if PasteboardMonitor.debug { NSLog("pasteboard change %d skipped: from another device", count) }
+                lastChangeCount = count
+                return
+            }
             if prefs.skipConcealed, types.contains(PBType.concealed) || types.contains(PBType.transient) {
                 lastChangeCount = count
                 return
@@ -86,8 +132,18 @@ final class PasteboardMonitor {
 
         guard var p = pending else { return }
 
-        // The change is under observation. Read again and compare.
+        // The change is under observation. Read again and compare. A read
+        // during which the clipboard changed again is not trusted.
         let snapshot = PasteboardSnapshot.capture(from: pasteboard)
+        guard pasteboard.changeCount == p.count else {
+            pending = nil
+            return
+        }
+        if isFromOtherDevice(snapshot.allTypes) {
+            lastChangeCount = p.count
+            pending = nil
+            return
+        }
         let stable = snapshot == p.snapshot
         p.snapshot = snapshot
         p.reads += 1
@@ -110,6 +166,8 @@ final class PasteboardMonitor {
         lastChangeCount = p.count
         pending = nil
         let snapshot = p.snapshot
+        // The last check before the store.
+        guard !isFromOtherDevice(snapshot.allTypes), !(screenLocked && !prefs.recordWhileLocked) else { return }
 
         if let limit = prefs.imageByteLimit, PBType.imageTypes.contains(where: { snapshot.has($0) }), snapshot.totalByteCount > limit {
             return

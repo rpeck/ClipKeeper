@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import Foundation
 
 /// A key plus modifiers, independent of keyboard layout for the special keys.
@@ -53,15 +54,41 @@ struct KeyCombo: Codable, Hashable, CustomStringConvertible {
         if let special = KeyCombo.specialKeyNames[event.keyCode] {
             key = special
         } else if let chars = event.charactersIgnoringModifiers, let first = chars.first {
-            if first.isLetter || first.isNumber || first.isPunctuation || first.isSymbol {
+            guard first.isLetter || first.isNumber || first.isPunctuation || first.isSymbol else { return nil }
+            if first.isASCII {
                 key = String(first).lowercased()
+            } else if let ascii = KeyCombo.asciiCharacter(forKeyCode: event.keyCode, shift: flags.contains(.shift)) {
+                // A non-Latin layout, such as Russian, gives "в" for the D key.
+                // AppKit matches its own shortcuts through the ASCII-capable
+                // layout; so does ClipKeeper.
+                key = ascii
             } else {
-                return nil
+                key = String(first).lowercased()
             }
         } else {
             return nil
         }
         modifiers = mods
+    }
+
+    /// The character that a key code gives in the current ASCII-capable
+    /// layout, such as U.S. or the Latin layout that the user chose.
+    static func asciiCharacter(forKeyCode keyCode: UInt16, shift: Bool) -> String? {
+        guard let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let raw = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
+        let data = Unmanaged<CFData>.fromOpaque(raw).takeUnretainedValue() as Data
+        return data.withUnsafeBytes { buffer -> String? in
+            guard let layout = buffer.baseAddress?.assumingMemoryBound(to: UCKeyboardLayout.self) else { return nil }
+            var deadKeys: UInt32 = 0
+            var chars = [UniChar](repeating: 0, count: 4)
+            var length = 0
+            let modifiers: UInt32 = shift ? UInt32(shiftKey >> 8) : 0
+            let status = UCKeyTranslate(layout, keyCode, UInt16(kUCKeyActionDown), modifiers, UInt32(LMGetKbdType()),
+                                        OptionBits(kUCKeyTranslateNoDeadKeysBit), &deadKeys, chars.count, &length, &chars)
+            guard status == noErr, length > 0 else { return nil }
+            let text = String(utf16CodeUnits: chars, count: length).lowercased()
+            return text.count == 1 && text.first?.isASCII == true ? text : nil
+        }
     }
 
     var description: String {

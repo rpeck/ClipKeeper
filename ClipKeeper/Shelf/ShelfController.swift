@@ -103,7 +103,10 @@ final class ShelfController {
     func hide(completion: (() -> Void)? = nil) {
         guard isVisible else { completion?(); return }
         if viewModel.holdsShelfOpenForTransfer {
-            NSLog("send: the shelf closed while a send waited for the user")
+            NSLog("send: the shelf closed while a send waited for the user; it resumes at the next open")
+            if PasteboardMonitor.debug {
+                NSLog("send: closed from %@", Thread.callStackSymbols.dropFirst().prefix(5).joined(separator: " | "))
+            }
         }
         isVisible = false
         openedByEdge = false
@@ -163,6 +166,12 @@ final class ShelfController {
     private func installKeyMonitor() {
         removeKeyMonitor()
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if PasteboardMonitor.debug, event.modifierFlags.contains(.command), let self {
+                // Before the window check, so a press that goes to another window shows too.
+                NSLog("key monitor: keyCode %d, to shelf %@, shelf is key %@, key window %@", Int(event.keyCode),
+                      event.window === self.panel ? "yes" : "no", self.panel.isKeyWindow ? "yes" : "no",
+                      NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "none")
+            }
             guard let self, event.window === self.panel else { return event }
             return self.viewModel.handle(event: event) ? nil : event
         }

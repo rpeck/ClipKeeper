@@ -711,6 +711,11 @@ menu bar icon. `Escape` closes the Settings window.
 
 **Privacy**
 - Skip clips that password managers mark as concealed or transient.
+- Record copies from my other Apple devices (Universal Clipboard). Off by
+  default.
+- Record copies while the screen is locked. Off by default.
+- The count of stored clips that came from other devices, with Delete
+  Them….
 - Fetch page titles and icons for copied links.
 - Excluded apps. Copies made in these apps are never recorded. Click Add App…
   and choose the app.
@@ -798,6 +803,23 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
     happens without you opening the link.
   - Turn it off in Settings › Privacy.
 - Password managers mark their copies as concealed. ClipKeeper skips those.
+- 🛡 ClipKeeper does not record copies from your other Apple devices.
+  - If two Macs, or a Mac and an iPhone, share an Apple Account, macOS
+    Universal Clipboard puts each copy on one device onto the clipboard of
+    the other. A work Mac's copies then reach a home Mac.
+  - ClipKeeper skips any copy that macOS marks as from another device. It
+    does not even read the content of such a copy.
+  - To record them anyway, turn on "Record copies from my other Apple
+    devices" in Settings › Privacy.
+  - Settings › Privacy shows how many stored clips came from other devices,
+    and deletes them after you confirm. Earlier versions stored them.
+  - ClipKeeper cannot stop macOS from sharing the clipboard. To stop it,
+    turn off Handoff in System Settings › General › AirDrop & Handoff, on
+    one of the devices. On a work Mac, a separate work Apple Account also
+    keeps the two apart.
+- 🛡 ClipKeeper records nothing while the screen is locked. After you
+  unlock, it does not record what reached the clipboard while the screen
+  was locked. Settings › Privacy can turn this off.
 - Add apps whose copies must never be recorded to the excluded list.
 - Pause capture before you copy something you do not want kept.
 - 🛡 **Delete removes the data.** A deleted clip's record is removed from the

@@ -74,7 +74,7 @@ struct SettingsView: View {
             KeybindingsSettingsView(bindings: bindings)
                 .tabItem { Label("Keys", systemImage: "keyboard") }
                 .tag(SettingsTab.keys)
-            PrivacySettingsView(prefs: prefs)
+            PrivacySettingsView(prefs: prefs, store: store)
                 .tabItem { Label("Privacy", systemImage: "hand.raised") }
                 .tag(SettingsTab.privacy)
             StorageSettingsView(store: store, prefs: prefs)
@@ -291,8 +291,41 @@ struct KeybindingsSettingsView: View {
 
 // MARK: Privacy
 
+/// Counts the stored clips that came from other devices, and deletes them
+/// after a confirmation.
+struct OtherDeviceCleanup: View {
+    let store: ClipStore
+    @State private var count: Int?
+    @State private var confirm = false
+
+    var body: some View {
+        HStack {
+            if let count {
+                Text(count == 0 ? "No stored clips came from other devices." : (count == 1 ? "1 stored clip came from another device." : "\(count) stored clips came from other devices."))
+            } else {
+                Text("Counting the clips from other devices…").foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Delete Them…") { confirm = true }.disabled((count ?? 0) == 0)
+        }
+        .onAppear { refresh() }
+        .confirmationDialog("Delete \(count ?? 0) clips that came from other devices?", isPresented: $confirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                store.delete(store.clipsFromOtherDevices())
+                refresh()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This includes pinned clips and clips in collections. It cannot be undone.")
+        }
+    }
+
+    private func refresh() { count = store.clipsFromOtherDevices().count }
+}
+
 struct PrivacySettingsView: View {
     @ObservedObject var prefs: Preferences
+    let store: ClipStore
 
     var body: some View {
         Form {
@@ -300,6 +333,13 @@ struct PrivacySettingsView: View {
                 Toggle("Skip clips that password managers mark as concealed or transient", isOn: Binding(get: { prefs.skipConcealed }, set: { prefs.skipConcealed = $0 }))
                 Toggle("Fetch page titles and icons for copied links", isOn: Binding(get: { prefs.fetchLinkTitles }, set: { prefs.fetchLinkTitles = $0 }))
                 Text("Fetching a title sends one request to the link's site.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Other devices") {
+                Toggle("Record copies from my other Apple devices (Universal Clipboard)", isOn: Binding(get: { prefs.recordOtherDevices }, set: { prefs.recordOtherDevices = $0 }))
+                Text("macOS puts a copy made on another Mac, iPhone, or iPad that uses your Apple Account on this Mac's clipboard. With this off, ClipKeeper does not record those copies. To stop macOS from sharing the clipboard at all, turn off Handoff in System Settings › General › AirDrop & Handoff.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Record copies while the screen is locked", isOn: Binding(get: { prefs.recordWhileLocked }, set: { prefs.recordWhileLocked = $0 }))
+                OtherDeviceCleanup(store: store)
             }
             Section("Excluded apps") {
                 Text("Copies made in these apps are not recorded.").font(.caption).foregroundStyle(.secondary)
