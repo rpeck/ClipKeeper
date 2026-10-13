@@ -422,6 +422,11 @@ Two Macs that both run ClipKeeper send clips to each other in the same way.
 Each Mac issues a PIN to the other Mac. The Mac that receives a clip shows
 the accept dialog. In these steps, the two Macs are "Home" and "Work".
 
+Two ClipKeeper Macs find each other in two ways at once: the LocalSend
+announcements, and Bonjour, the service that macOS uses to find printers.
+Bonjour works even while macOS blocks ClipKeeper's own announcements. If
+neither finds the other Mac, use Add by address in Settings › Devices.
+
 1. Do [Set up this Mac](#set-up-this-mac) on both Macs.
 2. On Home, add a device named "Work", and note its PIN.
 3. On Work, add a device named "Home", and note its PIN.
@@ -450,8 +455,12 @@ Do these checks in this order. Stop when the device appears.
 
 1. Check the Local Network permission.
    - On the Mac: System Settings › Privacy & Security › Local Network. Turn
-     on ClipKeeper. Then, in Settings › Devices, turn the transfer switch
-     off and on again.
+     on ClipKeeper. Wait about a minute, then quit ClipKeeper and open it
+     again. macOS applies the change only to a new launch.
+   - After each update of ClipKeeper, turn the switch off and on again, and
+     relaunch. A build from this repository has no Apple Team ID, so macOS
+     treats each new build as a new app. Two Macs that both run ClipKeeper
+     still find each other through Bonjour, without this switch.
    - On an iPhone: Settings › Privacy & Security › Local Network. Turn on
      LocalSend.
 2. Open LocalSend on the phone, and tap the refresh button next to Nearby
@@ -471,6 +480,16 @@ Do these checks in this order. Stop when the device appears.
    5. If the page does not load, the network keeps the devices apart.
       Connect both devices to a network that you control, such as your
       home Wi-Fi or the personal hotspot of the phone.
+4. Add the device by its address. This works when discovery does not:
+   1. On the other device, note its address and port. On a Mac, they are
+      in Settings › Devices. On a phone, the Wi-Fi settings show the
+      address, and LocalSend uses port 53317 unless you changed it.
+   2. On this Mac, in Settings › Devices, under Heard on This Network, type
+      the address, such as `10.0.0.12`, or `10.0.0.12:53318` for another
+      port. Click Add.
+   3. ClipKeeper reads the certificate of the device at that address and
+      lists the device. The first send still asks you to compare the
+      characters.
 
 ### How the transfers are protected
 

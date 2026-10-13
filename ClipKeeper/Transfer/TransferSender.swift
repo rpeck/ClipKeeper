@@ -45,6 +45,29 @@ enum SendError: Error, Equatable {
     }
 }
 
+/// For "Add by address" only: accepts the server's certificate once and
+/// records its fingerprint, because the user typed the address and nothing
+/// is known about the device yet. Nothing is sent but a GET of `info`, and
+/// the fingerprint recorded is the one the TLS handshake showed.
+final class FirstContactDelegate: NSObject, URLSessionTaskDelegate {
+    private(set) var fingerprint: String?
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let trust = challenge.protectionSpace.serverTrust,
+              let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
+              let leaf = chain.first else {
+            return completionHandler(.cancelAuthenticationChallenge, nil)
+        }
+        fingerprint = LocalSend.fingerprint(ofCertificateDER: [UInt8](SecCertificateCopyData(leaf) as Data))
+        completionHandler(.useCredential, URLCredential(trust: trust))
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
+    }
+}
+
 /// The URLSession delegate that decides trust. The only accepted server is
 /// the one whose leaf certificate hashes to the expected fingerprint. The
 /// default system evaluation is never the decision, and redirects are refused.
@@ -169,6 +192,45 @@ final class TransferSender {
         guard let info = try? LocalSend.decode(LocalSend.DeviceInfo.self, from: data, maxBytes: LocalSend.Limits.registerBodyBytes, maxDepth: LocalSend.Limits.announcementDepth) else {
             throw SendError.network
         }
+        return info
+    }
+
+    /// The device at a typed address: its `info`, with the fingerprint taken
+    /// from the certificate it presented, not from what it says about itself.
+    static func firstContact(address: String, port: Int) async throws -> LocalSend.DeviceInfo {
+        guard NetworkInterfaces.ipv4(from: address) != nil else { throw SendError.network }
+        var c = URLComponents()
+        c.scheme = "https"
+        c.host = address
+        c.port = port
+        c.path = LocalSend.Route.info.path
+        guard let url = c.url else { throw SendError.network }
+        let delegate = FirstContactDelegate()
+        let config = URLSessionConfiguration.ephemeral
+        config.httpCookieStorage = nil
+        config.urlCache = nil
+        config.urlCredentialStorage = nil
+        config.connectionProxyDictionary = [:]
+        config.timeoutIntervalForRequest = 10
+        config.timeoutIntervalForResource = 10
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        var request = URLRequest(url: url)
+        request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        let (bytes, response) = try await session.bytes(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw SendError.network }
+        var data = Data()
+        for try await byte in bytes {
+            data.append(byte)
+            if data.count > LocalSend.Limits.registerBodyBytes { bytes.task.cancel(); throw SendError.replyTooLarge }
+        }
+        guard var info = try? LocalSend.decode(LocalSend.DeviceInfo.self, from: data, maxBytes: LocalSend.Limits.registerBodyBytes, maxDepth: LocalSend.Limits.announcementDepth),
+              let real = delegate.fingerprint else { throw SendError.network }
+        // A device whose claim does not match its certificate is not listed.
+        guard LocalSend.cleanFingerprint(info.fingerprint) == real else { throw SendError.fingerprintMismatch }
+        info.fingerprint = real
+        info.port = port
+        info.scheme = "https"
         return info
     }
 

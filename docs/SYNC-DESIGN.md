@@ -465,6 +465,52 @@ tested.
 | A restart while locked unpaused the server | Astra | The lock state lives in the service and is read from the window server at start |
 | Discovery read loop without a cap | Gemini | 32 datagrams per wake-up |
 
+## Bonjour discovery and Add by address (2026-10-13)
+
+macOS 15 blocks the app's own UDP multicast (`sendto` answers EHOSTUNREACH)
+for a build without an Apple Team ID, and a rebuild loses the user's grant.
+The same app, run from a terminal, sends; so does Python. The system
+Bonjour service (mDNSResponder) still works for the app. So:
+
+- **Bonjour.** Each Mac registers `_clipkeeper._tcp` once per allowed
+  interface, with the fingerprint and the version in the TXT record, which
+  is the data that the LocalSend announcement already carries. Each Mac
+  browses per allowed interface, resolves each result to an IPv4 address on
+  that interface, and keeps it only when the address is on the link of
+  that interface. Results only add entries to the nearby list, which grants
+  no trust. The number of results and resolves in flight is capped, a
+  resolve times out after five seconds, and results refresh every 30
+  seconds.
+- **Add by address.** The user types an IPv4 address on an allowed link. A
+  first contact accepts the server's certificate once, for a single GET of
+  `info`, and takes the fingerprint from that certificate, not from the
+  reply. A reply that claims a different fingerprint is refused. The entry
+  lives 12 hours. The comparison is still required before a first send.
+
+Review round 4, the same three models, security only, each approved with
+fixes, all applied:
+
+- **Callback memory safety** (Gemini, Astra). Every DNS-SD context is a
+  retained box with weak references. A handle is released only after its
+  callback returns, and teardown never waits on its own queue.
+- **Bounded lookups** (Astra, Gemini). Each step takes its first answer
+  only. Lookups are keyed by interface and name, rate-limited, and share
+  one cap with the results. A full table drops its oldest result, and each
+  refresh looks up again the known services that dropped out (Fable).
+- **No remote deletion** (Astra). A Bonjour removal stops the refresh but
+  never deletes an entry learned another way.
+- **Local only** (Astra). Register and browse use `local.`, and hosts
+  outside `.local.` are refused.
+- **Blocking a Mac by its address** (Fable). Two fake entries at a
+  victim's address could push the real one out. Verified and manually added
+  devices now take priority at their address, and Add by address reports
+  the real result.
+- **Manual entries** (Astra). The 12-hour lifetime belongs to the exact
+  address and fingerprint, counted from the add.
+- **Impersonation** (Fable). A Bonjour record with this Mac's fingerprint
+  from another address raises the same warning as an announcement.
+- **Debug key log** (Astra). Only keys that match an action are logged.
+
 ## After this phase
 
 - Native ClipKeeper apps for iPhone and Android, speaking the

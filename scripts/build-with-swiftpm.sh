@@ -49,7 +49,9 @@ case "$MODE" in
     swift test -c release -Xswiftc -enable-testing "${SWIFT_BUILD_FLAGS[@]}" 2>&1 | grep -E "error:|✘|Test run with"
     echo "== Lint"
     command -v swiftlint >/dev/null || fail "SwiftLint is missing. Run: brew install swiftlint"
-    swiftlint lint --strict --quiet && echo "no lint findings"
+    # Not "a && b": a failure inside an && list does not stop the script.
+    swiftlint lint --strict --quiet || fail "SwiftLint found the problems listed above."
+    echo "no lint findings"
     echo "== Dependency audit"
     scripts/audit-deps.sh
     echo "== All checks passed"

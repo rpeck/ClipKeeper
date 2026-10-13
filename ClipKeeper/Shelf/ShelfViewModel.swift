@@ -208,7 +208,12 @@ final class ShelfViewModel: ObservableObject {
             }
             return true
         }
-        guard let action = bindings.resolve(event: event, searchHasText: !query.isEmpty) else { return false }
+        let resolved = bindings.resolve(event: event, searchHasText: !query.isEmpty)
+        if PasteboardMonitor.debug, let resolved {
+            // Only keys that match an action: never typed text, never clip content.
+            NSLog("key: %@ -> %@", combo.description, "\(resolved)")
+        }
+        guard let action = resolved else { return false }
         return perform(action)
     }
 

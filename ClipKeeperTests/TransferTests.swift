@@ -643,3 +643,32 @@ import Testing
         #expect((tooLarge as? HTTPURLResponse)?.statusCode == 413)
     }
 }
+
+/// Two Bonjour instances on this Mac's own Wi-Fi or Ethernet interface find
+/// each other through the system's Bonjour service. Skipped where there is
+/// no such interface, such as on a CI runner without one.
+@Suite(.enabled(if: !NetworkInterfaces.eligible().isEmpty)) struct BonjourDiscoveryTests {
+    @Test func twoInstancesFindEachOther() async throws {
+        let iface = try #require(NetworkInterfaces.eligible().first)
+        let a = BonjourDiscovery(), b = BonjourDiscovery()
+        let fpA = String(repeating: "A", count: 64), fpB = String(repeating: "B", count: 64)
+        let found = FoundBox()
+        a.onFound = { info, address in found.add(info.fingerprint, address) }
+        a.start(interfaces: [iface], alias: "Bonjour test A \(UUID().uuidString.prefix(6))", port: 54_301, fingerprint: fpA)
+        b.start(interfaces: [iface], alias: "Bonjour test B \(UUID().uuidString.prefix(6))", port: 54_302, fingerprint: fpB)
+        defer { a.stop(); b.stop() }
+        for _ in 0..<40 where !found.contains(fpB) {
+            try await Task.sleep(nanoseconds: 250_000_000)
+        }
+        #expect(found.contains(fpB))
+        // An instance never lists itself.
+        #expect(!found.contains(fpA))
+    }
+}
+
+final class FoundBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var entries: [String: String] = [:]
+    func add(_ fingerprint: String, _ address: String) { lock.lock(); entries[fingerprint] = address; lock.unlock() }
+    func contains(_ fingerprint: String) -> Bool { lock.lock(); defer { lock.unlock() }; return entries[fingerprint] != nil }
+}

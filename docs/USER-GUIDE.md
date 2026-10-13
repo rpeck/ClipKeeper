@@ -541,6 +541,11 @@ stops and the phone goes back to "not verified".
 
 ### Another Mac
 
+Two ClipKeeper Macs also find each other through Bonjour, the service that
+macOS uses to find printers. It works even while macOS blocks ClipKeeper's
+own announcements. When nothing finds the other device, type its address
+under Heard on This Network in Settings › Devices, and click Add.
+
 Two Macs that both run ClipKeeper send clips to each other the same way as
 a phone and a Mac: `⌘⇧D` to send, a PIN that the receiving Mac issued, and
 the accept dialog on the receiving Mac. Text only in this version.

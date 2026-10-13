@@ -45,6 +45,7 @@ final class TransferService: ObservableObject {
     private var server: TransferServer?
     private let discovery = DiscoveryService()
     private let localNetwork = LocalNetworkAccess()
+    private let bonjour = BonjourDiscovery()
     private var interfaceTimer: Timer?
     private var lastInterfaces: [NetworkInterface] = []
     private var lockObservers: [NSObjectProtocol] = []
@@ -83,6 +84,13 @@ final class TransferService: ObservableObject {
             guard let self else { return }
             self.updateMulticastBlocked()
             if case .running = self.state { self.discovery.announce() }
+        }
+        let discovery = self.discovery
+        bonjour.onFound = { info, address in discovery.note(info: info, address: address) }
+        bonjour.onImpersonation = { [weak self] address in
+            Task { @MainActor in
+                self?.impersonationWarning = "A device at \(address) published this Mac's own fingerprint through Bonjour. Something on this network pretends to be this Mac. Verify this Mac on your other devices before you send."
+            }
         }
         discovery.onImpersonation = { [weak self] address in
             Task { @MainActor in
@@ -180,6 +188,7 @@ final class TransferService: ObservableObject {
         self.server = server
         discovery.start(interfaces: interfaces, info: Self.info(alias: prefs.transferAlias, fingerprint: identity.fingerprint, port: port))
         discovery.announce()
+        bonjour.start(interfaces: interfaces, alias: prefs.transferAlias, port: port, fingerprint: identity.fingerprint)
         state = .running(addresses: interfaces.flatMap(\.addressStrings))
         startInterfaceWatch()
         localNetwork.start()
@@ -205,6 +214,7 @@ final class TransferService: ObservableObject {
         server?.stop()
         server = nil
         coordinator = nil
+        bonjour.stop()
         discovery.stop()
         discovered = []
     }
@@ -362,6 +372,34 @@ final class TransferService: ObservableObject {
 
     /// Targets for a send: verified devices that are on the network now,
     /// then every other device heard on the network, marked unverified.
+    /// Adds a device by its address, such as "10.0.0.12" or "10.0.0.12:53317".
+    /// Returns a message for the user.
+    func addByAddress(_ text: String) async -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
+        guard let host = parts.first, NetworkInterfaces.ipv4(from: host) != nil else {
+            return "Type an IPv4 address, such as 10.0.0.12, with an optional port."
+        }
+        let port = parts.count == 2 ? LocalSend.cleanPort(Int(parts[1])) : LocalSend.defaultPort
+        guard let port else { return "The port must be a number from 1024 to 65535." }
+        guard NetworkInterfaces.isOnAllowedLink(host, interfaces: NetworkInterfaces.allowed(prefs: prefs)) else {
+            return "\(host) is not on a network that phone and Mac transfer uses."
+        }
+        do {
+            let info = try await TransferSender.firstContact(address: host, port: port)
+            if info.fingerprint == fingerprint { return "That is this Mac's own address." }
+            guard discovery.noteManual(info: info, address: host) else {
+                return "The device at \(host) answered, but it could not be listed. Try again in a minute."
+            }
+            refreshDiscovered()
+            return "Added \(LocalSend.cleanAlias(info.alias) ?? host). Send a clip to it to compare the fingerprint."
+        } catch SendError.fingerprintMismatch {
+            return "The device at \(host) claims a fingerprint that its certificate does not have. It was not added."
+        } catch {
+            return "Nothing answered at \(host):\(port). Check that transfer is on there, and the address and port in its Settings › Devices."
+        }
+    }
+
     /// Checks the Local Network permission again, after the user changed it.
     func recheckLocalNetwork() {
         localNetwork.recheck()

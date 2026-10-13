@@ -11,6 +11,8 @@ struct DevicesSettingsView: View {
     @State private var justIssued: (name: String, pin: String)?
     @State private var aliasDraft = ""
     @State private var confirmRemove: PairedDevice?
+    @State private var addressDraft = ""
+    @State private var addressResult: String?
 
     var body: some View {
         Form {
@@ -95,6 +97,15 @@ struct DevicesSettingsView: View {
                         }
                     }
                     Button("Look Again") { transfer.announce() }
+                    HStack {
+                        TextField("Add by address, such as 10.0.0.12 or 10.0.0.12:53317", text: $addressDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { addByAddress() }
+                        Button("Add") { addByAddress() }.disabled(addressDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    if let addressResult {
+                        Text(addressResult).font(.caption).foregroundStyle(.secondary)
+                    }
                     Text("This list grants no trust. A send to a device needs the fingerprint comparison the first time.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -217,6 +228,14 @@ struct DevicesSettingsView: View {
         guard !name.isEmpty, let pin = transfer.addPhone(named: name) else { return }
         justIssued = (name, pin)
         newPhoneName = ""
+    }
+
+    private func addByAddress() {
+        let text = addressDraft
+        addressResult = "Looking…"
+        Task { @MainActor in
+            addressResult = await transfer.addByAddress(text)
+        }
     }
 
     private func commitAlias() {

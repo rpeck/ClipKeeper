@@ -52,6 +52,9 @@ final class DiscoveryService {
     private var budgetUsed = 0
     private var lastSendErrno: Int32 = -1
     private var verifiedFingerprints: Set<String> = []
+    /// Devices that the user added by address: "address:port|fingerprint" →
+    /// the time of the add. Long-lived for 12 hours from that time.
+    private var manualEntries: [String: Date] = [:]
 
     /// At most this many datagrams are parsed per second, from all sources together.
     static let datagramsPerSecond = 100
@@ -97,6 +100,19 @@ final class DiscoveryService {
         queue.async { [weak self] in
             guard let self, self.takeBudget() else { return }
             _ = self.recordLocked(info: info, address: address)
+        }
+    }
+
+    /// A device that the user added by address. Its fingerprint comes from
+    /// the certificate it presented, so it is real for that address; trust
+    /// still needs the comparison.
+    /// Returns true when the device is in the list.
+    func noteManual(info: LocalSend.DeviceInfo, address: String) -> Bool {
+        queue.sync {
+            guard let device = recordLocked(info: info, address: address, priority: true) else { return false }
+            if manualEntries.count >= LocalSend.Limits.discoveredDevices { manualEntries.removeAll() }
+            manualEntries["\(device.id)|\(device.fingerprint)"] = Date()
+            return true
         }
     }
 
@@ -259,7 +275,10 @@ final class DiscoveryService {
     }
 
     /// Validates and stores one device. Returns nil when a field is bad.
-    private func recordLocked(info: LocalSend.DeviceInfo, address: String) -> DiscoveredDevice? {
+    /// `priority`: a device the user verified or added by address. It may
+    /// push out the oldest other entry at its address, so that two fake
+    /// entries at a victim's address cannot block the real one.
+    private func recordLocked(info: LocalSend.DeviceInfo, address: String, priority: Bool = false) -> DiscoveredDevice? {
         guard let alias = LocalSend.cleanAlias(info.alias),
               let fingerprint = LocalSend.cleanFingerprint(info.fingerprint),
               let port = LocalSend.cleanPort(info.port),
@@ -271,7 +290,13 @@ final class DiscoveryService {
                                       deviceModel: info.deviceModel.flatMap(LocalSend.cleanAlias), deviceType: info.deviceType.flatMap(LocalSend.cleanAlias), lastSeen: Date())
         let previous = devices[device.id]
         // One host cannot fill the list from many ports.
-        if previous == nil, devices.values.filter({ $0.address == address }).count >= 2 { return nil }
+        let atAddress = devices.values.filter { $0.address == address }
+        if previous == nil, atAddress.count >= 2 {
+            let isPriority = priority || verifiedFingerprints.contains(fingerprint)
+            let evictable = atAddress.filter { !verifiedFingerprints.contains($0.fingerprint) && manualEntries["\($0.id)|\($0.fingerprint)"] == nil }
+            guard isPriority, let oldest = evictable.min(by: { $0.lastSeen < $1.lastSeen }) else { return nil }
+            devices[oldest.id] = nil
+        }
         if previous == nil, devices.count >= LocalSend.Limits.discoveredDevices {
             // Full: drop the oldest entry.
             if let oldest = devices.values.min(by: { $0.lastSeen < $1.lastSeen }) { devices[oldest.id] = nil }
@@ -304,8 +329,11 @@ final class DiscoveryService {
         let now = Date()
         let cutoff = now.addingTimeInterval(-LocalSend.Limits.discoveredTTL)
         let verifiedCutoff = now.addingTimeInterval(-LocalSend.Limits.verifiedDeviceTTL)
+        manualEntries = manualEntries.filter { $0.value > verifiedCutoff }
         devices = devices.filter { entry in
-            let limit = verifiedFingerprints.contains(entry.value.fingerprint) ? verifiedCutoff : cutoff
+            let manualKey = "\(entry.value.id)|\(entry.value.fingerprint)"
+            let longLived = verifiedFingerprints.contains(entry.value.fingerprint) || (manualEntries[manualKey].map { $0 > verifiedCutoff } ?? false)
+            let limit = longLived ? verifiedCutoff : cutoff
             return entry.value.lastSeen > limit
         }
     }
