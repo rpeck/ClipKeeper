@@ -58,6 +58,7 @@ import Testing
         monitor.check()
         #expect(store.clips(in: .history, query: "").count == 1)
         #expect(store.clipsFromOtherDevices().count == 1)
+        #expect(store.clips(in: .history, query: "").first?.isFromHandoff == true)
     }
 
     @Test func nothingIsRecordedWhileTheScreenIsLocked() {

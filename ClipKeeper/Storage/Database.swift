@@ -143,6 +143,15 @@ final class Database {
                 t.column("outcome", .text).notNull()
             }
         }
+        migrator.registerMigration("v5-sourceDevice") { db in
+            // Where a clip came from, when not from this Mac: the device's name
+            // at the time, and the paired device's id for a transfer.
+            try db.alter(table: "clip") { t in
+                t.add(column: "sourceDevice", .text)
+                t.add(column: "sourceDeviceID", .text)
+            }
+            try db.create(index: "clip_on_origin", on: "clip", columns: ["origin"])
+        }
         try migrator.migrate(queue)
     }
 }

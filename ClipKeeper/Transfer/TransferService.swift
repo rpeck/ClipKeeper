@@ -164,9 +164,9 @@ final class TransferService: ObservableObject {
             interfaces: { NetworkInterfaces.allowed(prefs: prefs) },
             noteDevice: { info, address in discovery.note(info: info, address: address) })
         coordinator.askUser = { [weak self] incoming, answer in self?.ask(incoming, answer: answer) ?? answer(false) }
-        coordinator.deliverText = { [weak self] text, device in
+        coordinator.deliverText = { [weak self] text, device, deviceID in
             guard let self else { return false }
-            return self.store.ingestNetworkText(text, deviceName: device) != nil
+            return self.store.ingestNetworkText(text, deviceName: device, deviceID: deviceID) != nil
         }
         coordinator.onHardStop = { [weak self] in self?.hardStop() }
         coordinator.onReceived = { [weak self] _, _ in

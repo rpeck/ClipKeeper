@@ -18,8 +18,9 @@ struct IncomingTransfer {
 final class ReceiveCoordinator: TransferRequestHandling {
     /// Asks the user. Called on the main thread. The answer must come once.
     var askUser: (IncomingTransfer, @escaping (Bool) -> Void) -> Void = { _, answer in answer(false) }
-    /// Stores one received text. Called on the main thread. Returns true when a clip was made.
-    var deliverText: (String, String) -> Bool = { _, _ in false }
+    /// Stores one received text: the text, the device name, and the paired
+    /// device's id. Called on the main thread. Returns true when a clip was made.
+    var deliverText: (String, String, String) -> Bool = { _, _, _ in false }
     /// The PIN budget is spent: the feature stops until the user restarts it.
     var onHardStop: () -> Void = {}
     /// A transfer finished, for the status line.
@@ -290,7 +291,7 @@ final class ReceiveCoordinator: TransferRequestHandling {
                 self.lock.unlock()
                 return completion(.forbidden)
             }
-            let stored = self.deliverText(text, s.deviceName)
+            let stored = self.deliverText(text, s.deviceName, s.credential.deviceID)
             guard stored else {
                 self.lock.unlock()
                 return completion(.internalServerError)

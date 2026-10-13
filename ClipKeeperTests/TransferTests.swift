@@ -302,6 +302,38 @@ import Testing
         #expect(store.snapshot(for: clip)?.allTypes == [PBType.string])
     }
 
+    @Test func aTransferRecordsTheSourceDevice() throws {
+        let clip = try #require(store.ingestNetworkText("hello", deviceName: "Pixel", deviceID: "device-1"))
+        #expect(clip.sourceDevice == "Pixel")
+        #expect(clip.sourceDeviceID == "device-1")
+        #expect(clip.sourceDeviceName == "Pixel")
+        #expect(store.clip(uuid: clip.uuid)?.sourceDeviceID == "device-1")
+    }
+
+    @Test func theSameTextFromTwoDevicesStaysTwoClips() throws {
+        let a = try #require(store.ingestNetworkText("same", deviceName: "Pixel", deviceID: "device-1"))
+        let b = try #require(store.ingestNetworkText("same", deviceName: "Work Mac", deviceID: "device-2"))
+        #expect(a.uuid != b.uuid)
+        let again = try #require(store.ingestNetworkText("same", deviceName: "Pixel", deviceID: "device-1"))
+        #expect(again.uuid == a.uuid)
+    }
+
+    @Test func universalClipboardCopiesAreMarkedAndBackfilled() throws {
+        // An older version stored a Universal Clipboard copy as a local clip.
+        var snapshot = PasteboardSnapshot.plainText("from the work Mac")
+        snapshot.items[0][PBType.remoteClipboard] = Data()
+        let old = try #require(store.ingest(snapshot, sourceBundleID: nil, sourceAppName: "loginwindow"))
+        #expect(old.origin == nil)
+        store.backfillHandoffOrigins()
+        let marked = try #require(store.clip(uuid: old.uuid))
+        #expect(marked.isFromHandoff)
+        #expect(marked.sourceDeviceName == Clip.handoffDeviceName)
+        // A local copy of other text stays local.
+        let local = try #require(store.ingest(.plainText("typed here"), sourceBundleID: nil, sourceAppName: "Notes"))
+        store.backfillHandoffOrigins()
+        #expect(store.clip(uuid: local.uuid)?.origin == nil)
+    }
+
     @Test func receivedCopyNeverReplacesALocalClip() throws {
         let local = try #require(store.ingest(.plainText("same text"), sourceBundleID: "com.example", sourceAppName: "Example"))
         let received = try #require(store.ingestNetworkText("same text", deviceName: "Pixel"))
@@ -406,7 +438,7 @@ import Testing
                 self.asked += 1
                 answer(self.accept)
             }
-            coordinator.deliverText = { [unowned self] text, _ in
+            coordinator.deliverText = { [unowned self] text, _, _ in
                 self.received.append(text)
                 return true
             }

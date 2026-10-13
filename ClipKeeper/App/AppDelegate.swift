@@ -29,6 +29,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         store = ClipStore(database: database, blobs: .standard(), prefs: prefs)
+        if !prefs.handoffBackfillDone {
+            // Once: mark the Universal Clipboard clips that older versions stored.
+            DispatchQueue.main.async { [store, prefs] in
+                store?.backfillHandoffOrigins()
+                prefs.handoffBackfillDone = true
+            }
+        }
         shelf = ShelfController(store: store, bindings: KeyBindingStore.shared, prefs: prefs)
         transfer = TransferService(store: store, database: database, prefs: prefs)
         transfer.onReceived = { [weak self] in self?.flashStatusItem() }

@@ -173,7 +173,9 @@ final class PasteboardMonitor {
             return
         }
         let front = NSWorkspace.shared.frontmostApplication
-        if let clip = store.ingest(snapshot, sourceBundleID: front?.bundleIdentifier, sourceAppName: front?.localizedName) {
+        let handoff = snapshot.has(PBType.remoteClipboard)
+        if let clip = store.ingest(snapshot, sourceBundleID: front?.bundleIdentifier, sourceAppName: front?.localizedName,
+                                   origin: handoff ? Clip.handoffOrigin : nil, sourceDevice: handoff ? Clip.handoffDeviceName : nil) {
             onCapture?(clip)
         }
         if PasteboardMonitor.debug {

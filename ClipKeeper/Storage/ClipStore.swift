@@ -131,7 +131,8 @@ final class ClipStore: ObservableObject {
     /// Stores a new capture. Returns the stored clip, or nil when the content is
     /// empty or unsupported. A duplicate of a History clip moves it to the top.
     @discardableResult
-    func ingest(_ snapshot: PasteboardSnapshot, sourceBundleID: String?, sourceAppName: String?, title titleOverride: String? = nil, sourcePath: String? = nil) -> Clip? {
+    func ingest(_ snapshot: PasteboardSnapshot, sourceBundleID: String?, sourceAppName: String?, title titleOverride: String? = nil, sourcePath: String? = nil,
+                origin: String? = nil, sourceDevice: String? = nil) -> Clip? {
         let t0 = Date()
         guard let c = ContentClassifier.classify(snapshot) else { return nil }
         if PasteboardMonitor.debug { NSLog("  classified as %@ in %.0f ms", c.kind.rawValue, Date().timeIntervalSince(t0) * 1000) }
@@ -139,8 +140,9 @@ final class ClipStore: ObservableObject {
 
         // Duplicate in History: move to top, refresh the snapshot.
         if let existing = try? db.read({ db in
-            // Only local clips. A network clip never takes a local clip's place.
-            try Clip.filter(Clip.Columns.contentHash == c.contentHash).filter(Clip.Columns.collectionID == nil).filter(Clip.Columns.origin == nil).fetchOne(db)
+            // Only a clip of the same origin. A clip from another device never
+            // takes a local clip's place, nor the reverse.
+            try Clip.filter(Clip.Columns.contentHash == c.contentHash).filter(Clip.Columns.collectionID == nil).filter(Clip.Columns.origin == origin).fetchOne(db)
         }) {
             var updated = existing
             updated.createdAt = now
@@ -157,7 +159,7 @@ final class ClipStore: ObservableObject {
             return updated
         }
 
-        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: titleOverride ?? c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: sourcePath, origin: nil)
+        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: titleOverride ?? c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: sourceBundleID, sourceAppName: sourceAppName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: c.imageWidth, imageHeight: c.imageHeight, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: c.hasRich, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: sourcePath, origin: origin, sourceDevice: sourceDevice)
         do {
             try blobs.save(snapshot: snapshot, for: clip.uuid)
             if let data = c.imageData { blobs.saveThumbnail(from: data, for: clip.uuid) }
@@ -169,7 +171,7 @@ final class ClipStore: ObservableObject {
         }
         applyRetention()
         bump()
-        if clip.kind == .link { fetchLinkMetadata(for: clip) }
+        if clip.kind == .link, origin == nil { fetchLinkMetadata(for: clip) }
         return clip
     }
 
@@ -180,7 +182,7 @@ final class ClipStore: ObservableObject {
     /// importer, no link title fetch, no replacement of a local clip, and a
     /// link only for http and https. `text` must already be sanitized.
     @discardableResult
-    func ingestNetworkText(_ text: String, deviceName: String) -> Clip? {
+    func ingestNetworkText(_ text: String, deviceName: String, deviceID: String? = nil) -> Clip? {
         let snapshot = PasteboardSnapshot.plainText(text)
         guard var c = ContentClassifier.classify(snapshot) else { return nil }
         if c.kind == .link {
@@ -195,20 +197,23 @@ final class ClipStore: ObservableObject {
         }
         if c.kind == .files || c.kind == .image { return nil }
         let now = Date()
-        // A repeat from the network moves the earlier network copy to the top.
+        // A repeat from the same device moves its earlier copy to the top. The
+        // same text from another device stays a separate clip, with its source.
         if let existing = try? db.read({ db in
-            try Clip.filter(Clip.Columns.contentHash == c.contentHash).filter(Clip.Columns.collectionID == nil).filter(Clip.Columns.origin == Clip.networkOrigin).fetchOne(db)
+            try Clip.filter(Clip.Columns.contentHash == c.contentHash).filter(Clip.Columns.collectionID == nil)
+                .filter(Clip.Columns.origin == Clip.networkOrigin).filter(Clip.Columns.sourceDeviceID == deviceID).fetchOne(db)
         }) {
             var updated = existing
             updated.createdAt = now
             updated.updatedAt = now
             updated.position = now.timeIntervalSince1970
             updated.sourceAppName = deviceName
+            updated.sourceDevice = deviceName
             try? db.write { db in try updated.update(db) }
             bump()
             return updated
         }
-        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: nil, sourceAppName: deviceName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: nil, imageHeight: nil, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: false, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: nil, origin: Clip.networkOrigin)
+        var clip = Clip(id: nil, uuid: UUID().uuidString, createdAt: now, updatedAt: now, kind: c.kind, title: c.title, text: c.text, contentHash: c.contentHash, byteCount: c.byteCount, sourceBundleID: nil, sourceAppName: deviceName, pinned: false, collectionID: nil, position: now.timeIntervalSince1970, language: c.language, imageWidth: nil, imageHeight: nil, linkTitle: nil, linkHost: c.linkHost, lineCount: c.lineCount, charCount: c.charCount, hasRich: false, colorHex: c.colorHex, formats: snapshot.formatSummary, sourcePath: nil, origin: Clip.networkOrigin, sourceDevice: deviceName, sourceDeviceID: deviceID)
         do {
             try blobs.save(snapshot: snapshot, for: clip.uuid)
             try db.write { db in try clip.insert(db) }
@@ -349,6 +354,21 @@ final class ClipStore: ObservableObject {
         bump()
     }
 
+    /// Marks the clips that older versions stored from Universal Clipboard as
+    /// coming from another device, so that an audit finds them. Runs once.
+    func backfillHandoffOrigins() {
+        let local = (try? db.read { db in try Clip.filter(Clip.Columns.origin == nil).fetchAll(db) }) ?? []
+        let marked = local.filter { blobs.loadSnapshot(for: $0.uuid)?.has(PBType.remoteClipboard) ?? false }
+        guard !marked.isEmpty else { return }
+        try? db.write { db in
+            for clip in marked {
+                try db.execute(sql: "UPDATE clip SET origin = ?, sourceDevice = ? WHERE uuid = ?",
+                               arguments: [Clip.handoffOrigin, Clip.handoffDeviceName, clip.uuid])
+            }
+        }
+        bump()
+    }
+
     /// Clips whose stored snapshot carries Apple's Universal Clipboard mark,
     /// in History and in collections.
     func clipsFromOtherDevices() -> [Clip] {
@@ -371,7 +391,7 @@ final class ClipStore: ObservableObject {
         if prefs.historyLimitEnabled {
             let limit = prefs.historyLimit
             let extra = (try? db.read { db in
-                try Clip.fetchAll(db, sql: "SELECT * FROM clip WHERE collectionID IS NULL AND pinned = 0 AND origin IS NULL ORDER BY position DESC, id DESC LIMIT -1 OFFSET ?", arguments: [limit])
+                try Clip.fetchAll(db, sql: "SELECT * FROM clip WHERE collectionID IS NULL AND pinned = 0 AND (origin IS NULL OR origin <> ?) ORDER BY position DESC, id DESC LIMIT -1 OFFSET ?", arguments: [Clip.networkOrigin, limit])
             }) ?? []
             victims.append(contentsOf: extra)
         }

@@ -41,6 +41,11 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
     /// "network" for a clip received from another device. It never fetches a
     /// link title, and it never replaces a local clip in the duplicate check.
     var origin: String?
+    /// The device a clip came from, when `origin` is set: a paired device's
+    /// name for a transfer, or "Another Apple device" for Universal Clipboard.
+    var sourceDevice: String?
+    /// The paired device's id for a transfer. Stays the same after a rename.
+    var sourceDeviceID: String?
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
@@ -58,9 +63,15 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
         static let position = Column(CodingKeys.position)
         static let byteCount = Column(CodingKeys.byteCount)
         static let origin = Column(CodingKeys.origin)
+        static let sourceDevice = Column(CodingKeys.sourceDevice)
+        static let sourceDeviceID = Column(CodingKeys.sourceDeviceID)
     }
 
+    /// A ClipKeeper or LocalSend transfer.
     static let networkOrigin = "network"
+    /// Universal Clipboard (Handoff) from another device on the Apple Account.
+    static let handoffOrigin = "handoff"
+    static let handoffDeviceName = "Another Apple device"
 
     static func == (lhs: Clip, rhs: Clip) -> Bool { lhs.uuid == rhs.uuid && lhs.updatedAt == rhs.updatedAt && lhs.pinned == rhs.pinned && lhs.linkTitle == rhs.linkTitle && lhs.collectionID == rhs.collectionID }
     func hash(into hasher: inout Hasher) { hasher.combine(uuid) }
@@ -69,8 +80,20 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
 extension Clip {
     var isInHistory: Bool { collectionID == nil }
 
-    /// True for a clip that arrived from another device.
+    /// True for a clip that arrived through a transfer.
     var isFromNetwork: Bool { origin == Clip.networkOrigin }
+
+    /// True for a clip that came through Universal Clipboard.
+    var isFromHandoff: Bool { origin == Clip.handoffOrigin }
+
+    /// True for any clip that did not start on this Mac.
+    var isFromOtherDevice: Bool { origin != nil }
+
+    /// "Pixel", "Work Mac", or "Another Apple device"; nil for this Mac.
+    var sourceDeviceName: String? {
+        guard isFromOtherDevice else { return nil }
+        return sourceDevice ?? (isFromHandoff ? Clip.handoffDeviceName : sourceAppName)
+    }
 
     /// A one-line summary shown under the preview, like "40 lines · 1545 characters".
     var metaSummary: String {
@@ -121,7 +144,9 @@ extension Clip {
         lines.append("Stored: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))")
         if let sourcePath { lines.append("File: \(sourcePath)") }
         if isFromNetwork {
-            lines.append("Received over the local network from: \(sourceAppName ?? "another device")")
+            lines.append("Received over the local network from: \(sourceDeviceName ?? "another device")")
+        } else if isFromHandoff {
+            lines.append("From another Apple device on your Apple Account (Universal Clipboard)")
         } else if let sourceAppName {
             lines.append("Copied from: \(sourceAppName)")
         }

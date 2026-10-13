@@ -26,6 +26,7 @@ enum PrefKey {
     static let shelfPinned = "shelfPinned"
     static let recordOtherDevices = "recordOtherDevices"
     static let recordWhileLocked = "recordWhileLocked"
+    static let handoffBackfillDone = "handoffBackfillDone"
     static let transferEnabled = "transferEnabled"
     static let transferAlias = "transferAlias"
     static let transferInterfaces = "transferInterfaces"
@@ -152,6 +153,10 @@ final class Preferences: ObservableObject {
     var recordWhileLocked: Bool {
         get { defaults.bool(forKey: PrefKey.recordWhileLocked) }
         set { defaults.set(newValue, forKey: PrefKey.recordWhileLocked); objectWillChange.send() }
+    }
+    var handoffBackfillDone: Bool {
+        get { defaults.bool(forKey: PrefKey.handoffBackfillDone) }
+        set { defaults.set(newValue, forKey: PrefKey.handoffBackfillDone) }
     }
     var isPaused: Bool {
         get { defaults.bool(forKey: PrefKey.isPaused) }

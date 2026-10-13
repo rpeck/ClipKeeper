@@ -507,7 +507,9 @@ Files clips do not go to a phone yet.
    transfer is refused.
 
 The text goes to the top of History. An orange phone icon on the card
-marks it as received.
+marks it as received. The ⓘ on the card names the device that sent it.
+A clip from Universal Clipboard, recorded only when you turn that on in
+Settings › Privacy, has a purple icon instead.
 
 🛡 Refuse a transfer that you did not start. A dialog that you did not
 expect means that someone else knows that phone's PIN. Click New PIN for

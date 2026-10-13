@@ -57,7 +57,13 @@ struct ClipRow: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .frame(width: 14)
-                    .help("Received over the local network from \(clip.sourceAppName ?? "a phone")")
+                    .help("Received over the local network from \(clip.sourceDeviceName ?? "a device")")
+            } else if clip.isFromHandoff {
+                Image(systemName: "laptopcomputer.and.iphone")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.purple)
+                    .frame(width: 14)
+                    .help("From another Apple device on your Apple Account (Universal Clipboard)")
             } else if let icon = AppIcons.icon(forBundleID: clip.sourceBundleID) {
                 Image(nsImage: icon).resizable().frame(width: 14, height: 14)
             } else {
