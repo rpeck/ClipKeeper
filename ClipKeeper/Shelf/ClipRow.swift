@@ -89,6 +89,12 @@ struct ClipRow: View {
                     .frame(minWidth: 200, maxWidth: 360, alignment: .leading)
             }
             Spacer(minLength: 4)
+            if !clip.personalData.isEmpty {
+                Image(systemName: "exclamationmark.shield.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red.opacity(0.75))
+                    .help("Possible personal data: \(clip.personalData.names). ClipKeeper found a pattern; check the clip before you share it.")
+            }
             if clip.pinned {
                 Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.orange)
             }

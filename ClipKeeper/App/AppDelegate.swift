@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var shelf: ShelfController!
     private var edgeTrigger: EdgeTrigger!
     private var settings: SettingsWindowController!
+    private var audit: AuditWindowController!
     private var transfer: TransferService!
     private var onboarding: OnboardingWindowController?
     private var statusItem: NSStatusItem!
@@ -29,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         store = ClipStore(database: database, blobs: .standard(), prefs: prefs)
+        // Clips stored before the personal-data flags: scan them in the background.
+        store.scanUnscannedForPersonalData()
         if !prefs.handoffBackfillDone {
             // Once: mark the Universal Clipboard clips that older versions stored.
             DispatchQueue.main.async { [store, prefs] in
@@ -42,6 +45,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shelf.viewModel.transfer = transfer
         settings = SettingsWindowController(store: store, bindings: KeyBindingStore.shared, prefs: prefs, transfer: transfer)
         shelf.openSettings = { [weak self] in self?.settings.show() }
+        audit = AuditWindowController(store: store) { [weak self] filter in
+            guard let self else { return }
+            self.shelf.viewModel.filter = filter
+            self.shelf.show()
+        }
+        shelf.viewModel.requestAudit = { [weak self] in self?.audit.show() }
+        settings.openAudit = { [weak self] in self?.audit.show() }
         edgeTrigger = EdgeTrigger(shelf: shelf, prefs: prefs)
         edgeTrigger.start()
 
@@ -189,6 +199,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         importItem.target = self
         menu.addItem(importItem)
 
+        let auditItem = NSMenuItem(title: "Clips from Other Devices…", action: #selector(openAudit), keyEquivalent: "")
+        auditItem.target = self
+        menu.addItem(auditItem)
+
         menu.addItem(.separator())
         let count = store.historyCount()
         let info = NSMenuItem(title: count == 1 ? "1 clip in History" : "\(count) clips in History", action: nil, keyEquivalent: "")
@@ -232,6 +246,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openSettings() { settings.show() }
 
     @objc private func openKeySettings() { settings.show(tab: .keys) }
+
+    @objc private func openAudit() { audit.show() }
 
     @objc private func openUserGuide() {
         if let url = Bundle.main.url(forResource: "USER-GUIDE", withExtension: "md") {

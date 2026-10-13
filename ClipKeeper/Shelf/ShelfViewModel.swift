@@ -66,6 +66,16 @@ final class ShelfViewModel: ObservableObject {
             if !query.isEmpty { reload(keepSelection: false) }
         }
     }
+    /// The source and personal-data filter from the filter menu. It stays
+    /// until the user clears it. Search words such as `from:pixel` add to it
+    /// for one search.
+    @Published var filter = ClipFilter() {
+        didSet { if filter != oldValue { reload(keepSelection: false) } }
+    }
+    /// The counts in the filter menu. Refreshed when the shelf opens and when the store changes.
+    @Published private(set) var sourceSummaries: [SourceSummary] = []
+    @Published private(set) var thisMacCount = 0
+    @Published private(set) var personalCount = 0
     /// Pinned: the shelf stays open after a paste and when it loses focus.
     @Published var pinned: Bool = Preferences.shared.shelfPinned {
         didSet { prefs.shelfPinned = pinned }
@@ -79,6 +89,8 @@ final class ShelfViewModel: ObservableObject {
     var requestNewClip: (ClipSet) -> Void = { _ in }
     var requestSaveAs: ([Clip]) -> Void = { _ in }
     var requestOpenSettings: () -> Void = {}
+    /// Opens the window that lists the clips from other devices.
+    var requestAudit: () -> Void = {}
     /// Opens a file panel and imports the chosen files into the current set.
     var requestImportFiles: (ClipSet) -> Void = { _ in }
     /// Imports these files as separate clips into the given set, and reports the outcome.
@@ -100,7 +112,12 @@ final class ShelfViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
-                if self.isActive { self.reload(keepSelection: true) } else { self.needsReload = true }
+                if self.isActive {
+                    self.reload(keepSelection: true)
+                    self.refreshFilterCounts()
+                } else {
+                    self.needsReload = true
+                }
             }
         reload(keepSelection: false)
     }
@@ -148,6 +165,7 @@ final class ShelfViewModel: ObservableObject {
         selectedUUIDs = []
         toast = nil
         if !query.isEmpty { query = "" } else { reload(keepSelection: false) }
+        refreshFilterCounts()
         selectedIndex = 0
         searchFocused = true
         scrollTarget = clips.first?.uuid
@@ -156,7 +174,8 @@ final class ShelfViewModel: ObservableObject {
     func reload(keepSelection: Bool) {
         let previous = keepSelection ? selectedClip?.uuid : nil
         if currentSetIndex >= sets.count { currentSetIndex = max(0, sets.count - 1) }
-        clips = store.clips(in: currentSet, query: query, newestFirst: searchNewestFirst)
+        let search = SearchTokens.parse(query)
+        clips = store.clips(in: currentSet, query: search.text, newestFirst: searchNewestFirst, filter: filter.adding(search.filter))
         if let previous, let idx = clips.firstIndex(where: { $0.uuid == previous }) {
             selectedIndex = idx
         } else {
@@ -165,6 +184,42 @@ final class ShelfViewModel: ObservableObject {
         }
         let present = Set(clips.map(\.uuid))
         selectedUUIDs = selectedUUIDs.intersection(present)
+    }
+
+    // MARK: Filter
+
+    /// The filter in effect: the menu's filter plus the search words.
+    var effectiveFilter: ClipFilter { filter.adding(SearchTokens.parse(query).filter) }
+
+    func refreshFilterCounts() {
+        sourceSummaries = store.sourceSummaries()
+        thisMacCount = store.thisMacCount()
+        personalCount = store.personalDataCount()
+    }
+
+    /// "From Pixel · Possible personal data", or nil when no filter is in effect.
+    var filterLabel: String? {
+        let f = effectiveFilter
+        guard f.isActive else { return nil }
+        var parts: [String] = []
+        switch f.source {
+        case .all: break
+        case .thisMac: parts.append("Copied on this Mac")
+        case .otherDevices: parts.append("From other devices")
+        case .device(let key):
+            let name = sourceSummaries.first { $0.key == key }?.name ?? key.deviceName ?? "a device"
+            parts.append("From \(name)")
+        case .deviceNamed(let text): parts.append("From devices named \u{201C}\(text)\u{201D}")
+        }
+        if f.personalOnly { parts.append("Possible personal data") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Clears the menu's filter and removes the filter words from the search.
+    func clearFilter() {
+        filter = ClipFilter()
+        let text = SearchTokens.parse(query).text
+        if text != query { query = text }
     }
 
     func selectSet(index: Int) {

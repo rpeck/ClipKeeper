@@ -27,6 +27,8 @@ final class SettingsWindowController {
     private let transfer: TransferService?
     private let selection = SettingsSelection()
     private var escapeMonitor: Any?
+    /// Opens the list of clips from other devices.
+    var openAudit: () -> Void = {}
 
     /// True while the Keys tab records a key combination. Escape then cancels
     /// the recording instead of closing the window.
@@ -44,7 +46,7 @@ final class SettingsWindowController {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 560), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             w.title = "ClipKeeper Settings"
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView(store: store, bindings: bindings, prefs: prefs, selection: selection, transfer: transfer))
+            w.contentView = NSHostingView(rootView: SettingsView(store: store, bindings: bindings, prefs: prefs, selection: selection, transfer: transfer, openAudit: { [weak self] in self?.openAudit() }))
             w.center()
             window = w
             escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -65,6 +67,7 @@ struct SettingsView: View {
     @ObservedObject var prefs: Preferences
     @ObservedObject var selection: SettingsSelection
     var transfer: TransferService?
+    var openAudit: () -> Void = {}
 
     var body: some View {
         TabView(selection: $selection.tab) {
@@ -74,7 +77,7 @@ struct SettingsView: View {
             KeybindingsSettingsView(bindings: bindings)
                 .tabItem { Label("Keys", systemImage: "keyboard") }
                 .tag(SettingsTab.keys)
-            PrivacySettingsView(prefs: prefs, store: store)
+            PrivacySettingsView(prefs: prefs, store: store, openAudit: openAudit)
                 .tabItem { Label("Privacy", systemImage: "hand.raised") }
                 .tag(SettingsTab.privacy)
             StorageSettingsView(store: store, prefs: prefs)
@@ -326,6 +329,7 @@ struct OtherDeviceCleanup: View {
 struct PrivacySettingsView: View {
     @ObservedObject var prefs: Preferences
     let store: ClipStore
+    var openAudit: () -> Void = {}
 
     var body: some View {
         Form {
@@ -340,6 +344,11 @@ struct PrivacySettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Record copies while the screen is locked", isOn: Binding(get: { prefs.recordWhileLocked }, set: { prefs.recordWhileLocked = $0 }))
                 OtherDeviceCleanup(store: store)
+                HStack {
+                    Text("See which devices put clips on this Mac, and find possible personal data.")
+                    Spacer()
+                    Button("Clips from Other Devices…") { openAudit() }
+                }
             }
             Section("Excluded apps") {
                 Text("Copies made in these apps are not recorded.").font(.caption).foregroundStyle(.secondary)

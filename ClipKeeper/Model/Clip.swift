@@ -46,6 +46,9 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
     var sourceDevice: String?
     /// The paired device's id for a transfer. Stays the same after a rename.
     var sourceDeviceID: String?
+    /// Possible personal or secret data found in the text: a
+    /// PersonalDataFlags bit mask. Nil: not scanned yet.
+    var piiFlags: Int?
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
@@ -65,6 +68,7 @@ struct Clip: Codable, Identifiable, Hashable, FetchableRecord, MutablePersistabl
         static let origin = Column(CodingKeys.origin)
         static let sourceDevice = Column(CodingKeys.sourceDevice)
         static let sourceDeviceID = Column(CodingKeys.sourceDeviceID)
+        static let piiFlags = Column(CodingKeys.piiFlags)
     }
 
     /// A ClipKeeper or LocalSend transfer.
@@ -85,6 +89,8 @@ extension Clip {
 
     /// True for a clip that came through Universal Clipboard.
     var isFromHandoff: Bool { origin == Clip.handoffOrigin }
+
+    var personalData: PersonalDataFlags { PersonalDataFlags(rawValue: piiFlags ?? 0) }
 
     /// True for any clip that did not start on this Mac.
     var isFromOtherDevice: Bool { origin != nil }
@@ -143,6 +149,7 @@ extension Clip {
         }
         lines.append("Stored: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))")
         if let sourcePath { lines.append("File: \(sourcePath)") }
+        if !personalData.isEmpty { lines.append("Possible personal data: \(personalData.names)") }
         if isFromNetwork {
             lines.append("Received over the local network from: \(sourceDeviceName ?? "another device")")
         } else if isFromHandoff {

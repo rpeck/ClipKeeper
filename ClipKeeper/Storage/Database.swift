@@ -152,6 +152,12 @@ final class Database {
             }
             try db.create(index: "clip_on_origin", on: "clip", columns: ["origin"])
         }
+        migrator.registerMigration("v6-piiFlags") { db in
+            // PersonalDataFlags bit mask. NULL: not scanned yet; 0: nothing found.
+            try db.alter(table: "clip") { t in
+                t.add(column: "piiFlags", .integer)
+            }
+        }
         try migrator.migrate(queue)
     }
 }

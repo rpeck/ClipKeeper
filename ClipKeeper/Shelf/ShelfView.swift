@@ -13,6 +13,25 @@ struct ShelfView: View {
             VStack(spacing: 0) {
                 searchBar
                 SetTabsView(model: model)
+                if let label = model.filterLabel {
+                    HStack(spacing: 6) {
+                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                        Text("Showing: \(label)")
+                            .font(.caption.weight(.medium))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer()
+                        Button("Show All") { model.clearFilter() }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .foregroundStyle(Color.accentColor)
+                            .help("Clear the filter and the filter words in the search")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Color.accentColor.opacity(0.1))
+                }
                 if !model.query.isEmpty {
                     HStack(spacing: 8) {
                         Text(model.clips.count == 1 ? "1 match" : "\(model.clips.count) matches")
@@ -106,6 +125,7 @@ struct ShelfView: View {
                 .buttonStyle(.plain)
                 .help("Capture is paused. Click to resume.")
             }
+            filterMenu
             Button { model.perform(.newClip) } label: {
                 Image(systemName: "plus").foregroundStyle(.secondary)
             }
@@ -126,6 +146,43 @@ struct ShelfView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(Color.primary.opacity(0.05))
+    }
+
+    /// Which clips to show: by source, and by possible personal data.
+    private var filterMenu: some View {
+        Menu {
+            sourceToggle("All Clips", .all)
+            sourceToggle("Copied on This Mac (\(model.thisMacCount))", .thisMac)
+            sourceToggle("From Other Devices (\(model.sourceSummaries.reduce(0) { $0 + $1.count }))", .otherDevices)
+            if !model.sourceSummaries.isEmpty {
+                Section("Devices") {
+                    ForEach(model.sourceSummaries) { summary in
+                        sourceToggle("\(summary.name) (\(summary.count))", .device(summary.key))
+                    }
+                }
+            }
+            Divider()
+            Toggle("Only Possible Personal Data (\(model.personalCount))", isOn: Binding(
+                get: { model.filter.personalOnly },
+                set: { model.filter.personalOnly = $0 }
+            ))
+            Divider()
+            Button("Audit Clips from Other Devices…") { model.requestAudit() }
+        } label: {
+            Image(systemName: model.effectiveFilter.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                .foregroundStyle(model.effectiveFilter.isActive ? Color.accentColor : Color.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Filter by source or by possible personal data. In the search, you can also type from:other, from:this, from:<device name>, or has:personal.")
+    }
+
+    private func sourceToggle(_ title: String, _ source: ClipFilter.Source) -> some View {
+        Toggle(title, isOn: Binding(
+            get: { model.filter.source == source },
+            set: { if $0 { model.filter.source = source } }
+        ))
     }
 
     private var clipList: some View {

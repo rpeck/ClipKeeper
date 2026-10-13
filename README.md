@@ -124,6 +124,13 @@ For the Xcode method, code signing, and dependency safety, see
   enough.
 - The control above the list sorts the results by best match, or with the
   newest first.
+- The filter button shows only the clips from one source, such as this Mac,
+  a phone, or another Mac. It can also show only the clips with possible
+  personal data.
+- These search words filter the list:
+  - `from:other` and `from:this`.
+  - `from:<device name>`, for example `from:pixel`.
+  - `has:personal`.
 - Press `Space` to see the full clip, with its details and its action
   buttons. While you type a search, `Space` types a space, so press `⌘Y`
   instead.
@@ -533,6 +540,14 @@ answers common problems.
   the clipboard at all, turn off Handoff in System Settings › General ›
   AirDrop & Handoff on one of the Macs.
 - ClipKeeper records nothing while the screen is locked.
+- ClipKeeper records which device each clip came from. To check for leaks,
+  choose Clips from Other Devices… from the menu bar icon. The window lists
+  each device with its count of clips. It can show those clips in the shelf
+  or delete them.
+- ClipKeeper flags clips with possible personal data, such as email
+  addresses, card numbers, and keys. A red shield on the card marks them.
+  The check uses patterns, on this Mac only. It misses some data and flags
+  some harmless text.
 - You can add apps that ClipKeeper must ignore, in Settings › Privacy.
 - Before you copy something that you do not want to keep, pause the
   capture from the menu bar icon.

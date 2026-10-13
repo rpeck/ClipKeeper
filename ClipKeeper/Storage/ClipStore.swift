@@ -24,7 +24,12 @@ final class ClipStore: ObservableObject {
 
     private var db: DatabaseQueue { database.queue }
 
-    private func bump() { changeToken &+= 1 }
+    private func bump() {
+        changeToken &+= 1
+        scanUnscannedForPersonalData()
+    }
+    private var scanRunning = false
+    private var scanAgain = false
 
     // MARK: Sets
 
@@ -90,12 +95,17 @@ final class ClipStore: ObservableObject {
 
     /// Clips in a set, newest first, pinned first. `query` filters with full-text
     /// search, ranked by match quality unless `newestFirst` is set.
-    func clips(in set: ClipSet, query: String, newestFirst: Bool = false) -> [Clip] {
+    func clips(in set: ClipSet, query: String, newestFirst: Bool = false, filter: ClipFilter = ClipFilter()) -> [Clip] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return (try? db.read { db -> [Clip] in
-            let collectionClause = set.collectionID == nil ? "clip.collectionID IS NULL" : "clip.collectionID = ?"
+            var collectionClause = set.collectionID == nil ? "clip.collectionID IS NULL" : "clip.collectionID = ?"
             var args: [DatabaseValueConvertible] = []
             if let cid = set.collectionID { args.append(cid) }
+            let (filterClause, filterArgs) = Self.sql(for: filter)
+            if !filterClause.isEmpty {
+                collectionClause += " AND " + filterClause
+                args += filterArgs
+            }
             let order = "clip.pinned DESC, clip.position DESC, clip.id DESC"
             if q.isEmpty {
                 return try Clip.fetchAll(db, sql: "SELECT clip.* FROM clip WHERE \(collectionClause) ORDER BY \(order) LIMIT 2000", arguments: StatementArguments(args))
@@ -108,6 +118,126 @@ final class ClipStore: ObservableObject {
             let like = "%" + q + "%"
             return try Clip.fetchAll(db, sql: "SELECT clip.* FROM clip WHERE (clip.text LIKE ? OR clip.title LIKE ?) AND \(collectionClause) ORDER BY \(order) LIMIT 500", arguments: StatementArguments([like, like] + args))
         }) ?? []
+    }
+
+    /// The SQL condition for a filter, with its arguments. Values are always
+    /// bound, never spliced into the SQL.
+    static func sql(for filter: ClipFilter) -> (String, [DatabaseValueConvertible]) {
+        var parts: [String] = []
+        var args: [DatabaseValueConvertible] = []
+        switch filter.source {
+        case .all: break
+        case .thisMac: parts.append("clip.origin IS NULL")
+        case .otherDevices: parts.append("clip.origin IS NOT NULL")
+        case .device(let key):
+            parts.append("clip.origin = ?")
+            args.append(key.origin)
+            if let id = key.deviceID {
+                parts.append("clip.sourceDeviceID = ?")
+                args.append(id)
+            } else if let name = key.deviceName {
+                parts.append("clip.sourceDeviceID IS NULL AND clip.sourceDevice = ?")
+                args.append(name)
+            }
+        case .deviceNamed(let text):
+            parts.append("clip.origin IS NOT NULL AND lower(coalesce(clip.sourceDevice, '')) LIKE ? ESCAPE '\\'")
+            let escaped = text.lowercased().replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "%", with: "\\%").replacingOccurrences(of: "_", with: "\\_")
+            args.append("%" + escaped + "%")
+        }
+        if filter.personalOnly { parts.append("clip.piiFlags > 0") }
+        return (parts.joined(separator: " AND "), args)
+    }
+
+    /// Every source of clips other than this Mac, with counts, dates, and kinds.
+    func sourceSummaries() -> [SourceSummary] {
+        let sql = """
+            SELECT origin, sourceDeviceID, MAX(sourceDevice) AS name, COUNT(*) AS n,
+                   SUM(CASE WHEN piiFlags > 0 THEN 1 ELSE 0 END) AS flagged,
+                   MIN(createdAt) AS first, MAX(createdAt) AS last, GROUP_CONCAT(DISTINCT kind) AS kinds
+            FROM clip WHERE origin IS NOT NULL
+            GROUP BY origin, COALESCE(sourceDeviceID, sourceDevice)
+            ORDER BY last DESC
+            """
+        return (try? db.read { db in
+            try Row.fetchAll(db, sql: sql).compactMap { row -> SourceSummary? in
+                guard let origin: String = row["origin"], let first: Date = row["first"], let last: Date = row["last"] else { return nil }
+                let id: String? = row["sourceDeviceID"]
+                let name: String? = row["name"]
+                let kinds = ((row["kinds"] as String?) ?? "").split(separator: ",").compactMap { ClipKind(rawValue: String($0)) }
+                return SourceSummary(key: SourceKey(origin: origin, deviceID: id, deviceName: id == nil ? name : nil),
+                                     name: name ?? (origin == Clip.handoffOrigin ? Clip.handoffDeviceName : "Unknown device"),
+                                     count: row["n"], personalCount: row["flagged"] ?? 0, first: first, last: last, kinds: kinds)
+            }
+        }) ?? []
+    }
+
+    /// The number of clips copied on this Mac.
+    func thisMacCount() -> Int {
+        (try? db.read { db in try Clip.filter(Clip.Columns.origin == nil).fetchCount(db) }) ?? 0
+    }
+
+    func personalDataCount() -> Int {
+        (try? db.read { db in try Clip.filter(Clip.Columns.piiFlags > 0).fetchCount(db) }) ?? 0
+    }
+
+    /// Every clip from one source, in any set.
+    func clips(from key: SourceKey) -> [Clip] {
+        let (clause, args) = Self.sql(for: ClipFilter(source: .device(key)))
+        return (try? db.read { db in
+            try Clip.fetchAll(db, sql: "SELECT clip.* FROM clip WHERE \(clause)", arguments: StatementArguments(args))
+        }) ?? []
+    }
+
+    /// Scans the clips that were never scanned for personal data, off the
+    /// main thread, in batches. Each change to the store starts a scan, so a
+    /// capture never waits for the detector.
+    func scanUnscannedForPersonalData() {
+        guard !scanRunning else {
+            scanAgain = true
+            return
+        }
+        scanRunning = true
+        let queue = db
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let found = Self.scanPending(in: queue)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.scanRunning = false
+                // A flag changes what the shelf shows. A scan that found nothing changes nothing.
+                if found { self.changeToken &+= 1 }
+                if self.scanAgain {
+                    self.scanAgain = false
+                    self.scanUnscannedForPersonalData()
+                }
+            }
+        }
+    }
+
+    /// Scans every clip whose piiFlags is NULL, in order of id, so that the
+    /// loop ends even when a write fails. Returns true when any clip has a flag.
+    nonisolated static func scanPending(in queue: DatabaseQueue) -> Bool {
+        var lastID: Int64 = 0
+        var found = false
+        while true {
+            let batch = (try? queue.read { db in
+                try Row.fetchAll(db, sql: "SELECT id, text FROM clip WHERE piiFlags IS NULL AND id > ? ORDER BY id LIMIT 200", arguments: [lastID])
+            }) ?? []
+            guard let last = batch.last else { break }
+            lastID = last["id"]
+            let results: [(Int64, Int)] = batch.map { row in
+                let text: String = row["text"] ?? ""
+                return (row["id"], PersonalDataDetector.detect(text).rawValue)
+            }
+            found = found || results.contains { $0.1 != 0 }
+            try? queue.write { db in
+                for (id, flags) in results {
+                    // A clip that changed during the scan keeps its newer value.
+                    try db.execute(sql: "UPDATE clip SET piiFlags = ? WHERE id = ? AND piiFlags IS NULL", arguments: [flags, id])
+                }
+            }
+        }
+        return found
     }
 
     func clip(uuid: String) -> Clip? {

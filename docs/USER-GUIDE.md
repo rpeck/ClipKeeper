@@ -27,6 +27,7 @@ Keys are written like this: `⌃⌘V`. Safety notes are marked with 🛡.
 - [Open and close the shelf](#open-and-close-the-shelf)
 - [The shelf](#the-shelf)
 - [Move and search](#move-and-search)
+- [Filter by source and personal data](#filter-by-source-and-personal-data)
 - [Preview a clip](#preview-a-clip)
 - [Paste](#paste)
 - [Clip types](#clip-types)
@@ -96,6 +97,9 @@ Click the clipboard icon in the menu bar for these items:
   [Pause capture](#pause-capture).
 - **Pick a Color with Eyedropper….** See [The eyedropper](#the-eyedropper).
 - **New Clip….** Type a clip in. See [Type a new clip](#type-a-new-clip).
+- **Import Files as Clips….** See [Import files as clips](#import-files-as-clips).
+- **Clips from Other Devices….** Opens the audit window. See
+  [Filter by source and personal data](#filter-by-source-and-personal-data).
 - **Settings….** Opens the Settings window.
 - **User Guide.** Opens this document.
 - **Quit ClipKeeper.**
@@ -133,6 +137,9 @@ From top to bottom the shelf has:
 
 - **Search field.** It has the keyboard focus when the shelf opens. Type to
   filter. The buttons at its right:
+  - The filter button shows only the clips from one source, or only the
+    clips with possible personal data. See
+    [Filter by source and personal data](#filter-by-source-and-personal-data).
   - `+` opens an empty editor, so that you can type a new clip. See
     [Type a new clip](#type-a-new-clip).
   - The pin keeps the shelf open. See [Open and close the shelf](#open-and-close-the-shelf).
@@ -161,6 +168,8 @@ Each clip card shows:
 - A `⌘1` to `⌘9` badge on the first nine clips.
 - A trash icon that deletes the clip.
 - A pin icon when the clip is pinned.
+- A red shield when the clip has possible personal data, such as an email
+  address or a key. Hover it to see what ClipKeeper found.
 
 ## Move and search
 
@@ -188,6 +197,75 @@ the same matches. Pinned clips stay on top.
 
 A control above the results switches the order between **Best match** and
 **Newest**. The choice is remembered.
+
+## Filter by source and personal data
+
+Use the filter to check which clips came from other devices, and which
+clips hold data that you may not want to keep.
+
+**The filter button.** Click the filter button at the right of the search
+field. Choose one source:
+
+- **All Clips.**
+- **Copied on This Mac.**
+- **From Other Devices.** Clips that a phone or another Mac sent, and
+  Universal Clipboard copies.
+- One device from the **Devices** list. Each device shows its count of
+  clips.
+
+You can also turn on **Only Possible Personal Data**. It works with any
+source.
+
+A line under the tabs shows the filter, for example "Showing: From Pixel ·
+Possible personal data". Click **Show All** to clear it. The filter stays
+until you clear it, also after the shelf closes.
+
+**Search words.** Type these words in the search field. They filter, and
+the other words search as usual:
+
+- `from:other`: clips from other devices.
+- `from:this`: clips copied on this Mac.
+- `from:pixel`: clips from each device whose name contains "pixel".
+- `has:personal`: clips with possible personal data. `has:pii` is the same.
+
+For example, `from:work password` finds the clips from the work Mac that
+contain "password".
+
+**Possible personal data.** ClipKeeper looks for these patterns in the text
+of each clip:
+
+- Email addresses.
+- Phone numbers with 10 or more digits.
+- Postal addresses.
+- Payment card numbers. The number must pass the card check digit.
+- U.S. Social Security numbers.
+- Bank account numbers in IBAN format. The number must pass its check
+  digits.
+- Keys and tokens: AWS, GitHub, OpenAI, Anthropic, Slack, Google, JSON Web
+  Tokens, and private keys.
+
+The check runs on this Mac only, after each new clip, and once for the
+clips from before this feature. Patterns miss some data and flag some
+harmless text. The flag tells you where to look. It does not prove that the
+data is personal.
+
+**The audit window.** Choose **Clips from Other Devices…** from the menu
+bar icon, from the filter button, or from Settings › Privacy. The window
+lists each device that put clips on this Mac:
+
+- The name of the device.
+- The number of clips, and how many of them have possible personal data.
+- The date of the first clip and the last clip.
+- The types of the clips.
+
+Each row has two buttons:
+
+- **Show in Shelf** opens the shelf with only the clips from that device.
+- **Delete All…** deletes every clip from that device, after you confirm.
+  This includes pinned clips and clips in collections.
+
+The bottom of the window counts the clips with possible personal data from
+all sources. Its **Show in Shelf** button shows them.
 
 ## Preview a clip
 
@@ -718,6 +796,7 @@ menu bar icon. `Escape` closes the Settings window.
 - Record copies while the screen is locked. Off by default.
 - The count of stored clips that came from other devices, with Delete
   Them….
+- Clips from Other Devices…. Opens the audit window.
 - Fetch page titles and icons for copied links.
 - Excluded apps. Copies made in these apps are never recorded. Click Add App…
   and choose the app.
@@ -822,6 +901,9 @@ directly, `Escape` cancels. Inside a confirmation: `Return` confirms,
 - 🛡 ClipKeeper records nothing while the screen is locked. After you
   unlock, it does not record what reached the clipboard while the screen
   was locked. Settings › Privacy can turn this off.
+- 🛡 ClipKeeper records which device each clip came from. The audit window
+  and the filter show these clips, and flag possible personal data. See
+  [Filter by source and personal data](#filter-by-source-and-personal-data).
 - Add apps whose copies must never be recorded to the excluded list.
 - Pause capture before you copy something you do not want kept.
 - 🛡 **Delete removes the data.** A deleted clip's record is removed from the

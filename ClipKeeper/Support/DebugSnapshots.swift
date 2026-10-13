@@ -29,11 +29,18 @@ enum DebugSnapshots {
         steps.append((0.2, { vm.perform(.moveToCollection) }))
         steps.append((0.6, { shot("picker.png"); vm.overlay = nil }))
         steps.append((0.2, { vm.query = "release" }))
-        steps.append((0.8, { shot("search.png"); vm.query = "" }))
+        steps.append((0.8, { shot("search.png"); vm.query = ""; vm.filter = ClipFilter(source: .otherDevices) }))
+        steps.append((0.8, { shot("filter.png"); vm.filter = ClipFilter() }))
         steps.append((0.2, { vm.perform(.toggleSelectMode); vm.perform(.extendSelectionDown); vm.perform(.extendSelectionDown) }))
         steps.append((0.6, { shot("checked.png"); vm.perform(.selectAll); vm.perform(.selectAll) }))
         steps.append((0.2, { vm.perform(.delete) }))
-        steps.append((0.6, { shot("confirm.png"); vm.overlay = nil; shelf.hide() }))
+        steps.append((0.6, { shot("confirm.png"); vm.overlay = nil; shelf.hide(); vm.requestAudit() }))
+        steps.append((1.0, {
+            if let w = NSApp.windows.first(where: { $0.title == "Clips from Other Devices" }), let v = w.contentView {
+                write(v, to: url.appendingPathComponent("audit.png"))
+                w.close()
+            }
+        }))
         steps.append((0.5, { settings.show(tab: .general) }))
         steps.append((1.0, {
             if let v = settings.window?.contentView { write(v, to: url.appendingPathComponent("settings.png")) }
