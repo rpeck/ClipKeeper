@@ -138,6 +138,9 @@ final class TransferServer {
                               let value = NetworkInterfaces.ipv4(from: address), iface.isOnLink(value),
                               handler.allowedInterfaces().contains(where: { $0.name == iface.name && $0.isOnLink(value) }),
                               gate.admit(address) else {
+                            if PasteboardMonitor.debug {
+                                NSLog("receive: connection from %@ refused on %@", channel.remoteAddress?.ipAddress ?? "?", iface.name)
+                            }
                             return channel.close()
                         }
                         let id = children.add(channel)
@@ -246,6 +249,9 @@ final class TransferHTTPHandler: ChannelInboundHandler {
     private var throughputCheck: RepeatedTask?
     private var bodyDeadline: Scheduled<Void>?
     private var bytesSinceCheck: Int64 = 0
+    /// The method and path, without the query, for the debug log. The query
+    /// holds the PIN and the upload token, so it never goes to a log.
+    private var requestLabel = "(no request)"
 
     init(handler: TransferRequestHandling, remoteAddress: String) {
         self.handler = handler
@@ -334,6 +340,7 @@ final class TransferHTTPHandler: ChannelInboundHandler {
     // MARK: Head
 
     private func receive(head: HTTPRequestHead, context: ChannelHandlerContext) {
+        requestLabel = "\(head.method) \(head.uri.split(separator: "?", maxSplits: 1).first.map(String.init)?.prefix(64) ?? "")"
         // Transport rules first. Any failure closes the connection with a status and no detail.
         guard head.version == .http1_1 || head.version == .http1_0 else { return respond(.status(.httpVersionNotSupported), context: context) }
         guard head.headers.count <= LocalSend.Limits.headerCount else { return respond(.status(.requestHeaderFieldsTooLarge), context: context) }
@@ -450,6 +457,7 @@ final class TransferHTTPHandler: ChannelInboundHandler {
         bodyDeadline?.cancel()
         if case .uploading(let upload) = state { handler.abortUpload(upload) }
         state = .done
+        if PasteboardMonitor.debug { NSLog("receive: %@ from %@: %d", requestLabel, remoteAddress, response.status.code) }
         var headers = HTTPHeaders()
         headers.add(name: "Connection", value: "close")
         headers.add(name: "Content-Length", value: String(response.body?.count ?? 0))

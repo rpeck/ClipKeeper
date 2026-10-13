@@ -38,7 +38,7 @@ final class PasteboardMonitor {
     var onCapture: ((Clip) -> Void)?
 
     /// Set CLIPKEEPER_DEBUG=1 to log every capture with its duration.
-    static let debug = ProcessInfo.processInfo.environment["CLIPKEEPER_DEBUG"] == "1"
+    nonisolated static let debug = ProcessInfo.processInfo.environment["CLIPKEEPER_DEBUG"] == "1"
 
     init(store: ClipStore, prefs: Preferences = .shared, pasteboard: NSPasteboard = .general) {
         self.store = store
